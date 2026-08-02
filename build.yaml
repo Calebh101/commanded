@@ -1,0 +1,15 @@
+targets:
+  $default:
+    builders:
+      advanced_cli:
+        enabled: true
+
+builders:
+  advanced_cli:
+    import: "package:advanced_cli/builders.dart"
+    builder_factories: ["commandBuilder"]
+    build_extensions:
+      "$lib$":
+        - "advanced_cli.g.dart"
+    auto_apply: root_package
+    build_to: source
