@@ -12,6 +12,7 @@ dependencies:
 
   advanced_cli:
     path: ..
+  meta: ^1.19.0
 dev_dependencies:
   build_runner: ^2.16.0
   lints: ^6.0.0

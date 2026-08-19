@@ -4,13 +4,14 @@ version: 1.0.0
 repository: https://github.com/Calebh101/advanced_cli
 
 environment:
-  sdk: ^3.12.2
+  sdk: ^3.13.0
 
 dependencies:
   build: ^4.0.10
   source_gen: ^4.2.4
   analyzer: ^14.1.0
   collection: ^1.19.1
+  meta: ^1.19.0
 
 dev_dependencies:
   build_runner: ^2.16.0

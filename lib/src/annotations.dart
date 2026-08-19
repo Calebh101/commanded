@@ -1,9 +1,3 @@
-class Command {
-  final String name;
-
-  const Command(this.name);
-}
-
 abstract class Parameter {
   const Parameter();
 }
@@ -22,10 +16,17 @@ class Argument extends Parameter {
 
 class Flag extends Parameter {
   final String name;
+  final String? abbr;
 
-  const Flag(this.name);
+  const Flag(this.name, {this.abbr});
 }
 
 class Subcommand extends Parameter {
-  const Subcommand();
+  final String name;
+
+  const Subcommand(this.name);
+}
+
+class MainCommand {
+  const MainCommand();
 }

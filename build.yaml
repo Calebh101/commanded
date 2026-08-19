@@ -7,9 +7,12 @@ targets:
 builders:
   advanced_cli:
     import: "package:advanced_cli/builders.dart"
-    builder_factories: ["commandBuilder"]
+    builder_factories:
+      - commandBuilder
     build_extensions:
-      "$lib$":
-        - "advanced_cli.g.dart"
+      .dart:
+        - .advanced_cli.g.part
     auto_apply: root_package
-    build_to: source
+    build_to: cache
+    applies_builders:
+      - source_gen:combining_builder

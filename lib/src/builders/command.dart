@@ -1,29 +1,17 @@
-import 'dart:async';
-
+import 'package:advanced_cli/src/command.dart';
+import 'package:advanced_cli/src/generator_for_superclass.dart';
 import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/dart/element/type.dart';
 import 'package:build/build.dart';
 import 'package:collection/collection.dart';
 import 'package:source_gen/source_gen.dart';
 
 Builder commandBuilder(BuilderOptions options) {
-  return CommandBuilder();
-}
-
-String getHelp(String command, List<ParameterElement> parameters, {bool flagsBefore = true}) {
-  final options = parameters.where((x) => x.type == .option);
-  final args = parameters.where((x) => x.type == .argument);
-  final flags = parameters.where((x) => x.type == .flag);
-
-  final argsString = args.map((x) => "<${x.name}>").join(" ");
-
-  return [
-    command,
-    if (!flagsBefore) argsString,
-    flags.map((x) => "[--${x.name}]").join(" "),
-    options.map((x) => "[--${x.name}=${x.field.type.getDisplayString()}]").join(" "),
-    if (flagsBefore) argsString,
-  ].where((x) => x.isNotEmpty).join(" ");
+  return SharedPartBuilder(
+    [CommandGenerator()],
+    'advanced_cli',
+  );
 }
 
 enum AnnotationType {
@@ -41,151 +29,202 @@ enum AnnotationType {
   const AnnotationType(this.className);
 }
 
-class ParameterElement {
+class SubcommandElement {
   final String name;
   final FieldElement field;
   final DartObject annotation;
-  final AnnotationType type;
 
-  ParameterElement({required this.name, required this.field, required this.annotation, required this.type});
+  SubcommandElement({required this.name, required this.field, required this.annotation});
 }
 
-class CommandElement {
+class FlagElement {
   final String name;
-  final ClassElement element;
-  final List<ParameterElement> parameters;
+  final String? abbr;
 
-  CommandElement({required this.name, required this.element, required this.parameters});
+  final FieldElement field;
+  final DartObject annotation;
+
+  bool get hasAbbr => abbr != null;
+
+  FlagElement({required this.name, required this.abbr, required this.field, required this.annotation});
 }
 
-class CommandBuilder implements Builder {
+class ArgumentElement {
+  final String name;
+  final DartType type;
+
+  final FieldElement field;
+  final DartObject annotation;
+
+  ArgumentElement({required this.name, required this.type, required this.field, required this.annotation});
+}
+
+class OptionElement {
+  final String name;
+  final DartType type;
+
+  final FieldElement field;
+  final DartObject annotation;
+
+  OptionElement({required this.name, required this.type, required this.field, required this.annotation});
+}
+
+class CommandGenerator extends GeneratorForSuperclass<Command> {
   @override
-  final buildExtensions = {
-    r'$lib$': ['advanced_cli.g.dart'],
-  };
+  dynamic generateForClass(ClassElement element, BuildStep buildStep) {
+    final isMain = element.metadata.annotations.any((x) {
+      final value = x.computeConstantValue();
+      return value?.type?.element?.name == "MainCommand";
+    });
 
-  @override
-  Future<void> build(BuildStep buildStep) async {
-    final List<CommandElement> commands = [];
+    final subcommands = element.fields.map((x) {
+      final a = x.metadata.annotations.firstWhereOrNull((y) {
+        final value = y.computeConstantValue();
+        return value?.type?.element?.name == "Subcommand";
+      });
 
-    await for (final asset in buildStep.findAssets(
-      .new('lib/**.dart'),
-    )) {
-      final library = LibraryReader(
-        await buildStep.resolver.libraryFor(asset),
-      );
+      if (a == null) return null;
+      final annotation = a.computeConstantValue();
+      if (annotation == null) return null;
+      return SubcommandElement(name: annotation.getField("name")!.toStringValue()!, field: x, annotation: annotation);
+    }).whereType<SubcommandElement>();
 
-      for (final element in library.classes) {
-        for (final meta in element.metadata.annotations) {
-          final annotation = meta.computeConstantValue();
-          final name = annotation?.type?.element?.name;
-          if (annotation == null || name != "Command") continue;
-          final List<ParameterElement> parameters = [];
+    final flags = element.fields.map((x) {
+      final a = x.metadata.annotations.firstWhereOrNull((y) {
+        final value = y.computeConstantValue();
+        return value?.type?.element?.name == "Flag";
+      });
 
-          for (final field in element.fields) {
-            for (final meta in field.metadata.annotations) {
-              final annotation = meta.computeConstantValue();
-              final type = AnnotationType.values.firstWhereOrNull((x) => x.className == annotation?.type?.element?.name);
+      if (a == null) return null;
+      final annotation = a.computeConstantValue();
+      if (annotation == null) return null;
+      return FlagElement(name: annotation.getField("name")!.toStringValue()!, abbr: annotation.getField("abbr")?.toStringValue(), field: x, annotation: annotation);
+    }).whereType<FlagElement>();
 
-              if (annotation == null || type == null) {
-                continue;
-              }
+    final arguments = element.fields.map((x) {
+      final a = x.metadata.annotations.firstWhereOrNull((y) {
+        final value = y.computeConstantValue();
+        return value?.type?.element?.name == "Argument";
+      });
 
-              if (type == .flag) {
-                if (!field.type.isDartCoreBool) {
-                  throw InvalidGenerationSourceError(
-                    "Field ${field.name} must be of type bool.",
-                    element: field,
-                  );
-                }
-              }
+      if (a == null) return null;
+      final annotation = a.computeConstantValue();
+      if (annotation == null) return null;
+      return ArgumentElement(name: annotation.getField("name")!.toStringValue()!, type: x.type, field: x, annotation: annotation);
+    }).whereType<ArgumentElement>();
 
-              parameters.add(.new(name: annotation.getField("name")!.toStringValue()!, field: field, annotation: annotation, type: type));
-            }
-          }
+    final options = element.fields.map((x) {
+      final a = x.metadata.annotations.firstWhereOrNull((y) {
+        final value = y.computeConstantValue();
+        return value?.type?.element?.name == "Option";
+      });
 
-          commands.add(.new(name: annotation.getField("name")!.toStringValue()!, element: element, parameters: parameters));
-        }
+      if (a == null) return null;
+      final annotation = a.computeConstantValue();
+      if (annotation == null) return null;
+      return OptionElement(name: annotation.getField("name")!.toStringValue()!, type: x.type, field: x, annotation: annotation);
+    }).whereType<OptionElement>();
+
+    for (final subcommand in subcommands) {
+      if (!TypeChecker.typeNamed(Command).isAssignableFromType(subcommand.field.type)) {
+        throw InvalidGenerationSourceError("Subcommand ${subcommand.name} needs to be of type Command.");
       }
     }
 
-    final output = '''
-// GENERATED CODE
+    for (final flag in flags) {
+      final type = flag.field.type;
 
-// ignore_for_file: unused_field
+      if (!type.isDartCoreBool) {
+        throw InvalidGenerationSourceError("Flag ${flag.name} needs to be of type bool.");
+      }
 
-import 'package:advanced_cli/advanced_cli.dart';
+      if (flag.field.isLate) {
+        throw InvalidGenerationSourceError("Flag ${flag.name} cannot be late, and must default to true or false.");
+      }
+    }
 
-enum _AnnotationType {
-  option,
-  argument,
-  flag,
-  ;
+    return """
+${isMain ? """
+void processArgs(List<String> arguments) {
+  return ${element.name}CommandData.runFromList(arguments);
 }
+""" : ""}
 
-abstract class CommandData {
-  const CommandData();
-}
+final class ${element.name}CommandData {
+  static final positional = [${arguments.map((arg) {
+    return "(name: '${arg.name}', type: ${arg.type.getDisplayString(withNullability: false)}, set: (${element.name} object, dynamic value) => object.${arg.field.name} = value)";
+  }).join(", ")}];
 
-final class _Param {
-  final _AnnotationType annotation;
-  final String type;
-  final String? name;
+  static void runFromList(List<String> arguments, [int i = 0]) {
+    if (arguments.length > i) {
+      switch (arguments[i]) {
+        ${subcommands.map((element) {
+          return "case '${element.name}': return ${element.field.type.getDisplayString(withNullability: false)}CommandData.runFromList(arguments, i + 1);";
+        }).join("\n")}
+      }
+    }
 
-  const _Param({required this.annotation, required this.type, required this.name});
-}
+    final object = ${element.name}();
+    final iterator = arguments.iterator;
+    int pos = 0;
 
-final class _Command {
-  final Map<String, _Param> parameters;
-  final String help;
+    while (iterator.moveNext()) {
+      final arg = iterator.current;
 
-  const _Command({required this.parameters, required this.help});
-}
+      if (arg.startsWith("--")) {
+        switch (arg.replaceFirst("--", "")) {
+          ${flags.map((element) {
+            return "case '${element.name}': object.${element.field.name} = !object.${element.field.name}; break;";
+          }).join("\n")}
+          ${options.map((element) {
+            return """case '${element.name}':
+              final converter = object.checkConverter(${element.type});
 
-final Map<String, _Command> _commands = {
-${commands.map((command) {
-  return '''  "${command.name}": _Command(
-    help: "${getHelp(command.name, command.parameters)}",
-    parameters: {
-${command.parameters.map((parameter) {
-  return '      "${parameter.name}": _Param(annotation: .${parameter.type.name}, type: "${parameter.field.type.getDisplayString()}", name: "${parameter.annotation.getField("name")?.toStringValue()}")';
-}).join(",\n")},
-    },
-  ),
-'''.trimRight();
-}).join("\n")}
-};
+              if (converter == null) {
+                throw ConverterNotFoundError("Converter not found for option ${element.name} and type ${element.type}.");
+              }
 
-${commands.map((command) {
-  final className = "${sentenceCase(command.name).replaceAll("-", "_")}CommandData";
+              if (!iterator.moveNext()) {
+                throw CustomParseException("Expected value for option ${element.name}.");
+              }
 
-  return '''
-class $className extends CommandData {
-${command.parameters.map((param) {
-  return "  final ${param.field.type.getDisplayString()} ${param.field.name};";
-}).join("\n")}
+              final value = converter.convert(iterator.current);
 
-  const $className({${command.parameters.map((param) {
-    return "required this.${param.field.name}";
-  }).join(", ")}});
-}
-'''.trim();
-}).join("\n\n")}
-''';
+              if (value == null) {
+                throw ParseException("${element.type}", arg, converter.help());
+              }
 
-    final outputId = AssetId(
-      buildStep.inputId.package,
-      'lib/advanced_cli.g.dart',
-    );
+              object.${element.field.name} = value;
+            """.trim();
+          }).join("\n")}
+        }
+      } else if (arg.startsWith("-")) {
+        switch (arg.replaceFirst("-", "")) {
+          ${flags.where((x) => x.hasAbbr).map((element) {
+            return "case '${element.abbr}': object.${element.field.name} = !object.${element.field.name}; break;";
+          }).join("\n")}
+        }
+      } else if (pos < ${arguments.length}) {
+        final target = positional[i];
+        final converter = object.checkConverter(target.runtimeType);
 
-    await buildStep.writeAsString(
-      outputId,
-      output,
-    );
+        if (converter == null) {
+          throw ConverterNotFoundError("Converter not found for positional argument \${target.name} and type \${target.type}.");
+        }
+
+        final value = converter.convert(arg);
+
+        if (value == null) {
+          throw ParseException("\${target.type}", arg, converter.help());
+        }
+
+        target.set(object, value);
+      }
+    }
+
+    object.onRun();
   }
 }
-
-String sentenceCase(String s) {
-  if (s.isEmpty) return s;
-  return s[0].toUpperCase() + s.substring(1);
+""".trim();
+  }
 }
