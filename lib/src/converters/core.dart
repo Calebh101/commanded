@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:advanced_cli/src/command.dart';
+import 'package:advanced_cli/src/classes.dart';
 import 'package:collection/collection.dart';
 
 class BoolConverter extends Converter<bool> {

@@ -1,13 +1,32 @@
-import 'package:advanced_cli/src/command.dart';
+import 'package:advanced_cli/src/classes.dart';
 import 'package:advanced_cli/src/generator_for_superclass.dart';
 import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
 import 'package:build/build.dart';
 import 'package:collection/collection.dart';
+import 'package:meta/meta.dart';
 import 'package:source_gen/source_gen.dart';
 
 const bool debug = false;
+
+String suffix(String element) => "${element}Data";
+
+extension on Element {
+  String _internalName(String? name) {
+    return "${name}Data";
+  }
+
+  String get internalName => _internalName(name);
+}
+
+extension on VariableElement {
+  String get internalNameFromType => _internalName(type.getDisplayString(withNullability: false));
+}
+
+extension on String {
+  String get quoted => '"$this"';
+}
 
 Builder commandBuilder(BuilderOptions options) {
   return SharedPartBuilder(
@@ -32,49 +51,98 @@ abstract class ParameterElement {
   final String name;
   final String? help;
 
-  new({required this.name, required this.help});
-}
-
-class SubcommandElement extends ParameterElement {
   final FieldElement field;
   final DartObject annotation;
 
-  SubcommandElement({required super.name, required this.field, required this.annotation, required super.help});
+  new({required this.name, required this.help, required this.field, required this.annotation});
+
+  String toRecord();
+
+  @protected
+  String bracketsIf(bool condition, String string) {
+    return condition ? "[$string]" : string;
+  }
+}
+
+class SubcommandElement extends ParameterElement {
+  SubcommandElement({required super.name, required super.field, required super.annotation, required super.help});
+
+  @override
+  String toRecord() {
+    return "(name: ${name.quoted}, help: ${help?.quoted})";
+  }
 }
 
 class FlagElement extends ParameterElement {
   final String? abbr;
-
-  final FieldElement field;
-  final DartObject annotation;
+  final bool negatable;
 
   bool get hasAbbr => abbr != null;
 
-  FlagElement({required super.name, required this.abbr, required this.field, required this.annotation, required super.help});
+  FlagElement({required super.name, required this.abbr, required this.negatable, required super.field, required super.annotation, required super.help});
+
+  @override
+  String toString() {
+    return bracketsIf(!negatable, ["--$name", if (hasAbbr) "-$abbr"].join("/"));
+  }
+
+  @override
+  String toRecord() {
+    return "(name: ${name.quoted}, help: ${help?.quoted}, abbr: ${abbr?.quoted}, negatable: $negatable)";
+  }
 }
 
 class ArgumentElement extends ParameterElement {
   final DartType type;
-  final FieldElement field;
-  final DartObject annotation;
+  final bool optional;
 
-  ArgumentElement({required super.name, required this.type, required this.field, required this.annotation, required super.help});
+  ArgumentElement({required super.name, required this.type, required this.optional, required super.field, required super.annotation, required super.help});
+
+  @override
+  String toString() {
+    return bracketsIf(optional, name);
+  }
+
+  @override
+  String toRecord() {
+    return "(name: ${name.quoted}, help: ${help?.quoted}, required: ${!optional})";
+  }
 }
 
 class OptionElement extends ParameterElement {
   final DartType type;
-  final FieldElement field;
-  final DartObject annotation;
+  final bool optional;
 
-  OptionElement({required super.name, required this.type, required this.field, required this.annotation, required super.help});
+  OptionElement({required super.name, required this.type, required this.optional, required super.field, required super.annotation, required super.help});
+
+  @override
+  String toString() {
+    return bracketsIf(optional, "--$name <$name>");
+  }
+
+  @override
+  String toRecord() {
+    return "(name: ${name.quoted}, help: ${help?.quoted}, type: ${type.getDisplayString().quoted}, required: ${!optional})";
+  }
 }
 
 class MultiOptionElement extends ParameterElement {
   final DartType type;
-  final FieldElement field;
-  final DartObject annotation;
+  final int? min;
 
-  MultiOptionElement({required super.name, required this.type, required this.field, required this.annotation, required super.help});
+  bool get atLeastOne => min != null && min! >= 1;
+
+  MultiOptionElement({required super.name, required this.type, required this.min, required super.field, required super.annotation, required super.help});
+
+  @override
+  String toString() {
+    return bracketsIf(!atLeastOne, "--$name <$name>");
+  }
+
+  @override
+  String toRecord() {
+    return "(name: ${name.quoted}, help: ${help?.quoted}, type: ${type.getDisplayString().quoted}, min: $min)";
+  }
 }
 
 class CommandGenerator extends GeneratorForSuperclass<Command> {
@@ -92,6 +160,20 @@ class CommandGenerator extends GeneratorForSuperclass<Command> {
     return annotation;
   }
 
+  DartObject? getField(DartObject? object, String name) {
+    if (object == null) return null;
+    var current = object;
+
+    while (true) {
+      final f = current.getField(name);
+      if (f != null) return f;
+
+      final s = current.getField("(super)");
+      if (s == null) return null;
+      current = s;
+    }
+  }
+
   Iterable<FieldElement> allFields(ClassElement element) {
     final Set<String> elements = {};
     final Set<String> names = {};
@@ -103,8 +185,11 @@ class CommandGenerator extends GeneratorForSuperclass<Command> {
     ]) {
       if (field.isStatic) continue;
       final annotation = getAnnotation(field, AnnotationType.values);
-      final name = annotation?.getField("name")?.toStringValue();
-      if (field.name != null && elements.add(field.name!) && name != null && names.add(name)) result.add(field);
+      final name = getField(annotation, "name")?.toStringValue();
+
+      if (field.name != null && elements.add(field.name!) && name != null && names.add(name)) {
+        result.add(field);
+      }
     }
 
     return result;
@@ -122,37 +207,37 @@ class CommandGenerator extends GeneratorForSuperclass<Command> {
     final subcommands = allFields(element).map((x) {
       final annotation = getAnnotation(x, [.subcommand]);
       if (annotation == null) return null;
-      return SubcommandElement(name: annotation.getField("name")!.toStringValue()!, help: annotation.getField("help")?.toStringValue(), field: x, annotation: annotation);
+      return SubcommandElement(name: getField(annotation, "name")!.toStringValue()!, help: getField(annotation, "help")?.toStringValue(), field: x, annotation: annotation);
     }).whereType<SubcommandElement>();
 
     final flags = allFields(element).map((x) {
       final annotation = getAnnotation(x, [.flag]);
       if (annotation == null) return null;
-      return FlagElement(name: annotation.getField("name")!.toStringValue()!, help: annotation.getField("help")?.toStringValue(), abbr: annotation.getField("abbr")?.toStringValue(), field: x, annotation: annotation);
+      return FlagElement(name: getField(annotation, "name")!.toStringValue()!, help: getField(annotation, "help")?.toStringValue(), negatable: getField(annotation, "negatable")?.toBoolValue() ?? false, abbr: getField(annotation, "abbr")?.toStringValue(), field: x, annotation: annotation);
     }).whereType<FlagElement>();
 
     final arguments = allFields(element).map((x) {
       final annotation = getAnnotation(x, [.argument]);
       if (annotation == null) return null;
-      return ArgumentElement(name: annotation.getField("name")!.toStringValue()!, help: annotation.getField("help")?.toStringValue(), type: x.type, field: x, annotation: annotation);
+      return ArgumentElement(name: getField(annotation, "name")!.toStringValue()!, help: getField(annotation, "help")?.toStringValue(), type: x.type, field: x, annotation: annotation, optional: x.type.nullabilitySuffix == .question);
     }).whereType<ArgumentElement>();
 
     final options = allFields(element).map((x) {
       final annotation = getAnnotation(x, [.option]);
       if (annotation == null) return null;
-      return OptionElement(name: annotation.getField("name")!.toStringValue()!, help: annotation.getField("help")?.toStringValue(), type: x.type, field: x, annotation: annotation);
+      return OptionElement(name: getField(annotation, "name")!.toStringValue()!, help: getField(annotation, "help")?.toStringValue(), type: x.type, field: x, annotation: annotation, optional: x.type.nullabilitySuffix == .question);
     }).whereType<OptionElement>();
 
     final multiOptions = allFields(element).map((x) {
       final annotation = getAnnotation(x, [.multiOption]);
       if (annotation == null) return null;
-      final name = annotation.getField("name")!.toStringValue()!;
+      final name = getField(annotation, "name")!.toStringValue()!;
 
       if (!x.type.isDartCoreList) {
         throw InvalidGenerationSourceError("Multi-option $name needs to be of type List.");
       }
 
-      return MultiOptionElement(name: name, help: annotation.getField("help")?.toStringValue(), type: (x.type as InterfaceType).typeArguments.first, field: x, annotation: annotation);
+      return MultiOptionElement(name: name, help: getField(annotation, "help")?.toStringValue(), type: (x.type as InterfaceType).typeArguments.first, field: x, annotation: annotation, min: getField(annotation, "min")?.toIntValue());
     }).whereType<MultiOptionElement>();
 
     for (final subcommand in subcommands) {
@@ -169,7 +254,7 @@ class CommandGenerator extends GeneratorForSuperclass<Command> {
       }
 
       if (flag.field.isLate) {
-        throw InvalidGenerationSourceError("Flag ${flag.name} cannot be late, and must default to true or false.");
+        throw InvalidGenerationSourceError("Flag ${flag.name} cannot be late.");
       }
     }
 
@@ -179,16 +264,62 @@ class CommandGenerator extends GeneratorForSuperclass<Command> {
       }
     }
 
+    String ifEmptyRecord(String input) {
+      return input == "({})" ? "()" : input;
+    }
+
+    String allBlank(String name, String type, Iterable<ParameterElement> elements) {
+      return """
+List<$type> get all$name {
+  return [${elements.map((x) {
+    return x.toRecord();
+  }).join(", ")}];
+}""".trim();
+    }
+
+    String allBlankRecords(String name, String type, Iterable<ParameterElement> elements) {
+      return """
+${ifEmptyRecord("({${elements.map((x) => "$type ${x.field.name}").join(", ")}})")} get $name {
+  return (${elements.map((x) => "${x.field.name}: ${x.toRecord()}").join(", ")});
+}""".trim();
+    }
+
     return """
 ${isMain ? """
-void processArgs(List<String> arguments) {
-  return ${element.name}CommandData.runFromList(arguments);
+bool runCommands(List<String> arguments) {
+  return ${element.internalName}.runFromList(arguments);
 }
 """ : ""}
 
-final class ${element.name}CommandData {
-  static final positional = [${arguments.map((arg) {
-    return "(name: '${arg.name}', type: ${arg.type.getDisplayString(withNullability: false)}, set: (${element.name} object, dynamic value) => object.${arg.field.name} = value)";
+extension ${element.name}Help on ${element.name} {
+  String usage() {
+    return [name, ...[${flags.map((x) => '"$x"').join(", ")}], ...[${options.map((x) => '"$x"').join(", ")}], ...[${arguments.map((x) => '"$x"').join(", ")}], if (restName != null) "...\$restName"].join(" ");
+  }
+
+  ${allBlank("Arguments", "ArgumentData", arguments)}
+
+  ${allBlank("Flags", "FlagData", flags)}
+
+  ${allBlank("Options", "OptionData", options)}
+
+  ${allBlank("MultiOptions", "MultiOptionData", multiOptions)}
+
+  ${allBlank("Subcommands", "SubcommandData", subcommands)}
+
+  ${allBlankRecords("arguments", "ArgumentData", arguments)}
+
+  ${allBlankRecords("flags", "FlagData", flags)}
+
+  ${allBlankRecords("options", "OptionData", options)}
+
+  ${allBlankRecords("multiOptions", "MultiOptionData", multiOptions)}
+
+  ${allBlankRecords("subcommands", "SubcommandData", subcommands)}
+}
+
+final class ${element.internalName} {
+  static final List<PositionalArgumentData> _positional = [${arguments.map((arg) {
+    return "(name: '${arg.name}', type: ${arg.type.getDisplayString(withNullability: false)}, set: (Command object, dynamic value) => (object as ${element.name}).${arg.field.name} = value, required: ${!arg.optional})";
   }).join(", ")}];
 
   // ignore: unused_element
@@ -196,21 +327,42 @@ final class ${element.name}CommandData {
     ${debug ? "print('[Debug] [${element.name}] \${input()}');" : ''}
   }
 
-  static void runFromList(List<String> arguments, [int index = 0]) {
+  static bool runFromList(List<String> arguments) {
+    try {
+      _runFromList(arguments, 0);
+      return true;
+    } on ParseException catch (e) {
+      _debug(() => e.toString());
+      final object = ${element.name}();
+
+      print(e.message);
+      print("Usage: \${object.usage()}");
+      print("");
+      print(object.buildHelp());
+
+      return false;
+    }
+  }
+
+  static void _runFromList(List<String> arguments, int index) {
     if (arguments.length > index) {
       switch (arguments[index]) {
         ${subcommands.map((element) {
-          return "case '${element.name}': return ${element.field.type.getDisplayString(withNullability: false)}CommandData.runFromList(arguments, index + 1);";
+          return "case '${element.name}': return ${element.field.internalNameFromType}._runFromList(arguments, index + 1);";
         }).join("\n")}
       }
     }
 
+    // Makes it easy to get the next item when parsing things such as options
     final iterator = arguments.iterator;
     final object = ${element.name}();
     final maxPos = ${arguments.length - 1};
 
-    int pos = 0;
     final List<String> rest = [];
+    final Set<String> setOptions = {};
+    final Map<String, int> setMultiOptions = {};
+
+    int pos = 0;
 
     for (int i = 0; i < index; i++) {
       iterator.moveNext();
@@ -222,60 +374,71 @@ final class ${element.name}CommandData {
       if (arg.startsWith("--")) {
         switch (arg.replaceFirst("--", "")) {
           ${flags.map((element) {
-            return "case '${element.name}': object.${element.field.name} = !object.${element.field.name}; break;";
+            return "case '${element.name}': object.${element.field.name} = true; break;";
+          }).join("\n")}
+          ${flags.where((x) => x.negatable).map((element) {
+            return "case 'no-${element.name}': object.${element.field.name} = false; break;";
           }).join("\n")}
           ${options.map((element) {
             return """case '${element.name}':
-              final converter = object.getConverter(${element.type});
+              // Converts strings into the preferred type
+              final converter = object.getConverter(${element.type.getDisplayString(withNullability: false)});
 
               if (converter == null) {
-                throw ConverterNotFoundError("Converter not found for option ${element.name} and type ${element.type}.");
+                throw ConverterNotFoundError("Converter not found for option ${element.name} and type ${element.type.getDisplayString(withNullability: false)}.");
               }
 
               if (!iterator.moveNext()) {
-                throw CustomParseException("Expected value for option ${element.name}.");
+                throw ParseException("Expected value for option '${element.name}'.");
               }
 
               final value = converter.convert(iterator.current);
 
               if (value == null) {
-                throw ParseException("${element.type}", arg, converter.help());
+                throw AdvancedParseException(converter.typePretty ?? "${element.type.getDisplayString(withNullability: false)}", arg, converter.help());
               }
 
               object.${element.field.name} = value;
+              setOptions.add("${element.name}");
+              break;
             """.trim();
           }).join("\n")}
           ${multiOptions.map((element) {
             return """case '${element.name}':
-              final converter = object.getConverter(${element.type});
+              // Converts strings into the preferred type
+              final converter = object.getConverter(${element.type.getDisplayString(withNullability: false)});
 
               if (converter == null) {
-                throw ConverterNotFoundError("Converter not found for multi-option ${element.name} and type List<${element.type}>.");
+                throw ConverterNotFoundError("Converter not found for multi-option ${element.name} and type List<${element.type.getDisplayString(withNullability: false)}>.");
               }
 
               if (!iterator.moveNext()) {
-                throw CustomParseException("Expected value for option ${element.name}.");
+                throw ParseException("Expected value for option '${element.name}'.");
               }
 
               final value = converter.convert(iterator.current);
 
               if (value == null) {
-                throw ParseException("${element.type}", arg, converter.help());
+                throw AdvancedParseException(converter.typePretty ?? "${element.type.getDisplayString(withNullability: false)}", arg, converter.help());
               }
 
               object.${element.field.name}.add(value);
+              setMultiOptions["${element.name}"] = (setMultiOptions["${element.name}"] ?? 0) + 1;
+              break;
             """.trim();
           }).join("\n")}
+          default: throw ParseException("Invalid flag/option: \$arg");
         }
       } else if (arg.startsWith("-")) {
         switch (arg.replaceFirst("-", "")) {
           ${flags.where((x) => x.hasAbbr).map((element) {
             return "case '${element.abbr}': object.${element.field.name} = !object.${element.field.name}; break;";
           }).join("\n")}
+          default: throw ParseException("Invalid flag/option: \$arg");
         }
       } else if (pos <= maxPos) {
-        final target = positional[pos];
-        final converter = object.getConverter(target.type);
+        final target = _positional[pos];
+        final converter = object.getConverter(target.type); // Converts strings into the preferred type
 
         if (converter == null) {
           throw ConverterNotFoundError("Converter not found for positional argument \${target.name} and type \${target.type}.");
@@ -284,13 +447,36 @@ final class ${element.name}CommandData {
         final value = converter.convert(arg);
 
         if (value == null) {
-          throw ParseException("\${target.type}", arg, converter.help());
+          throw AdvancedParseException(converter.typePretty ?? target.type.toString(), arg, converter.help());
         }
 
         target.set(object, value);
         pos++;
       } else {
         rest.add(arg);
+      }
+    }
+
+    if (_positional.elementAtOrNull(pos)?.required == true) {
+      throw ParseException("Positional argument '\${_positional[pos].name}' is required.");
+    }
+
+    for (final String name in [${options.where((x) => !x.optional).map((x) => x.name.quoted).join(", ")}]) {
+      if (!setOptions.contains(name)) {
+        throw ParseException("Option '\$name' is required.");
+      }
+    }
+
+    for (final (String name, int? min) in [${multiOptions.map((x) => '(${x.name.quoted}, ${x.min})').join(", ")}]) {
+      if (min == null || min <= 0) continue;
+      final count = setMultiOptions[name];
+
+      if (count == null) {
+        throw ParseException("Multi-option '\$name' requires at least \$min items.");
+      }
+
+      if (count < min) {
+        throw ParseException("Multi-option '\$name' requires at least \$min items.");
       }
     }
 

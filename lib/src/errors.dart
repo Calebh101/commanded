@@ -10,25 +10,20 @@ class ConverterNotFoundError extends Error {
 }
 
 class ParseException implements Exception {
-  final String type;
-  final String got;
-  final String? help;
-
-  ParseException(this.type, this.got, this.help);
-
-  @override
-  String toString() {
-    return "ParseException(type=$type, help=${help.runtimeType}), got: $got";
-  }
-}
-
-class CustomParseException implements Exception {
   final String message;
 
-  CustomParseException(this.message);
+  new(this.message);
 
   @override
   String toString() {
     return "ParseException: $message";
   }
+}
+
+class AdvancedParseException extends ParseException {
+  final String type;
+  final String got;
+  final String? help;
+
+  AdvancedParseException(this.type, this.got, this.help) : super(["Couldn't parse input to type '$type': $got", ?help].join("\n"));
 }

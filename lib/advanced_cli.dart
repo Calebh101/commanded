@@ -1,10 +1,9 @@
 /// Support for doing something awesome.
 library;
 
-export 'src/main.dart';
-export 'src/annotations.dart';
-export 'src/command.dart';
+export 'src/annotations.dart' hide Parameter;
+export 'src/classes.dart';
 export 'src/errors.dart';
-export 'src/help.dart';
+export 'src/types.dart';
 
 export 'src/converters/core.dart';

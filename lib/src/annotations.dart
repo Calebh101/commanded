@@ -10,7 +10,9 @@ class Option extends Parameter {
 }
 
 class MultiOption extends Parameter {
-  const MultiOption(super.name, {super.help});
+  final int? min;
+
+  const MultiOption(super.name, {super.help, this.min});
 }
 
 class Argument extends Parameter {
@@ -19,8 +21,9 @@ class Argument extends Parameter {
 
 class Flag extends Parameter {
   final String? abbr;
+  final bool negatable;
 
-  const Flag(super.name, {this.abbr, super.help});
+  const Flag(super.name, {this.abbr, this.negatable = false, super.help});
 }
 
 class Subcommand extends Parameter {
