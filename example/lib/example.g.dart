@@ -19,17 +19,27 @@ final class MyCommandCommandData {
     ),
   ];
 
-  static void runFromList(List<String> arguments, [int i = 0]) {
-    if (arguments.length > i) {
-      switch (arguments[i]) {
+  // ignore: unused_element
+  static void _debug(String Function() input) {}
+
+  static void runFromList(List<String> arguments, [int index = 0]) {
+    if (arguments.length > index) {
+      switch (arguments[index]) {
         case 'subcommand':
-          return MyOtherCommandCommandData.runFromList(arguments, i + 1);
+          return MyOtherCommandCommandData.runFromList(arguments, index + 1);
       }
     }
 
-    final object = MyCommand();
     final iterator = arguments.iterator;
+    final object = MyCommand();
+    final maxPos = 0;
+
     int pos = 0;
+    final List<String> rest = [];
+
+    for (int i = 0; i < index; i++) {
+      iterator.moveNext();
+    }
 
     while (iterator.moveNext()) {
       final arg = iterator.current;
@@ -39,8 +49,11 @@ final class MyCommandCommandData {
           case 'flag':
             object.myFlag = !object.myFlag;
             break;
+          case 'verbose':
+            object.verbose = !object.verbose;
+            break;
           case 'option':
-            final converter = object.checkConverter(String);
+            final converter = object.getConverter(String);
 
             if (converter == null) {
               throw ConverterNotFoundError(
@@ -59,12 +72,32 @@ final class MyCommandCommandData {
             }
 
             object.myOption = value;
+          case 'device':
+            final converter = object.getConverter(String);
+
+            if (converter == null) {
+              throw ConverterNotFoundError(
+                "Converter not found for multi-option device and type List<String>.",
+              );
+            }
+
+            if (!iterator.moveNext()) {
+              throw CustomParseException("Expected value for option device.");
+            }
+
+            final value = converter.convert(iterator.current);
+
+            if (value == null) {
+              throw ParseException("String", arg, converter.help());
+            }
+
+            object.devices.add(value);
         }
       } else if (arg.startsWith("-")) {
         switch (arg.replaceFirst("-", "")) {}
-      } else if (pos < 1) {
-        final target = positional[i];
-        final converter = object.checkConverter(target.runtimeType);
+      } else if (pos <= maxPos) {
+        final target = positional[pos];
+        final converter = object.getConverter(target.type);
 
         if (converter == null) {
           throw ConverterNotFoundError(
@@ -79,9 +112,13 @@ final class MyCommandCommandData {
         }
 
         target.set(object, value);
+        pos++;
+      } else {
+        rest.add(arg);
       }
     }
 
+    object.rest = rest;
     object.onRun();
   }
 }
@@ -89,14 +126,24 @@ final class MyCommandCommandData {
 final class MyOtherCommandCommandData {
   static final positional = [];
 
-  static void runFromList(List<String> arguments, [int i = 0]) {
-    if (arguments.length > i) {
-      switch (arguments[i]) {}
+  // ignore: unused_element
+  static void _debug(String Function() input) {}
+
+  static void runFromList(List<String> arguments, [int index = 0]) {
+    if (arguments.length > index) {
+      switch (arguments[index]) {}
     }
 
-    final object = MyOtherCommand();
     final iterator = arguments.iterator;
+    final object = MyOtherCommand();
+    final maxPos = -1;
+
     int pos = 0;
+    final List<String> rest = [];
+
+    for (int i = 0; i < index; i++) {
+      iterator.moveNext();
+    }
 
     while (iterator.moveNext()) {
       final arg = iterator.current;
@@ -106,6 +153,9 @@ final class MyOtherCommandCommandData {
           case 'flag':
             object.myOtherFlag = !object.myOtherFlag;
             break;
+          case 'verbose':
+            object.verbose = !object.verbose;
+            break;
         }
       } else if (arg.startsWith("-")) {
         switch (arg.replaceFirst("-", "")) {
@@ -113,9 +163,9 @@ final class MyOtherCommandCommandData {
             object.myOtherFlag = !object.myOtherFlag;
             break;
         }
-      } else if (pos < 0) {
-        final target = positional[i];
-        final converter = object.checkConverter(target.runtimeType);
+      } else if (pos <= maxPos) {
+        final target = positional[pos];
+        final converter = object.getConverter(target.type);
 
         if (converter == null) {
           throw ConverterNotFoundError(
@@ -130,9 +180,13 @@ final class MyOtherCommandCommandData {
         }
 
         target.set(object, value);
+        pos++;
+      } else {
+        rest.add(arg);
       }
     }
 
+    object.rest = rest;
     object.onRun();
   }
 }

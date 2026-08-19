@@ -1,30 +1,30 @@
 abstract class Parameter {
-  const Parameter();
+  final String name;
+  final String? help;
+
+  const Parameter(this.name, {this.help});
 }
 
 class Option extends Parameter {
-  final String name;
+  const Option(super.name, {super.help});
+}
 
-  const Option(this.name);
+class MultiOption extends Parameter {
+  const MultiOption(super.name, {super.help});
 }
 
 class Argument extends Parameter {
-  final String name;
-
-  const Argument(this.name);
+  const Argument(super.name, {super.help});
 }
 
 class Flag extends Parameter {
-  final String name;
   final String? abbr;
 
-  const Flag(this.name, {this.abbr});
+  const Flag(super.name, {this.abbr, super.help});
 }
 
 class Subcommand extends Parameter {
-  final String name;
-
-  const Subcommand(this.name);
+  const Subcommand(super.name, {super.help});
 }
 
 class MainCommand {

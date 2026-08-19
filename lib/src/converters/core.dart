@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:advanced_cli/src/command.dart';
 import 'package:collection/collection.dart';
 
@@ -51,8 +53,16 @@ class IntConverter extends Converter<int> {
   }
 }
 
-// TODO: List
-// TODO: Map
+class JsonConverter extends Converter<dynamic> {
+  @override
+  convert(String input) {
+    try {
+      return jsonDecode(input);
+    } catch (_) {
+      return null;
+    }
+  }
+}
 
 class NumConverter extends Converter<num> {
   @override
@@ -60,8 +70,6 @@ class NumConverter extends Converter<num> {
     return .tryParse(input);
   }
 }
-
-// TODO: Set
 
 class StringConverter extends Converter<String> {
   @override
