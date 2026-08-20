@@ -252,7 +252,7 @@ extension RandomNumberCommandHelp on RandomNumberCommand {
   String usage() {
     return [
       name,
-      ...["[--secure/-s]", "[--verbose]"],
+      ...["[--secure/-s]", "[--timed/-t]", "[--verbose]"],
       ...["[--min <min>]", "[--max <max>]"],
       ...[],
       if (settings.restUsageName != null) "...${settings.restUsageName}",
@@ -269,6 +269,13 @@ extension RandomNumberCommandHelp on RandomNumberCommand {
         name: "secure",
         help: "Whether to make this RNG secure. Defaults to false.",
         abbr: "s",
+        negatable: false,
+      ),
+      (
+        name: "timed",
+        help:
+            "Whether to time how long it takes to generate the number. Defaults to false.",
+        abbr: "t",
         negatable: false,
       ),
       (
@@ -309,12 +316,19 @@ extension RandomNumberCommandHelp on RandomNumberCommand {
     return ();
   }
 
-  ({FlagData secure, FlagData verbose}) get flags {
+  ({FlagData secure, FlagData timed, FlagData verbose}) get flags {
     return (
       secure: (
         name: "secure",
         help: "Whether to make this RNG secure. Defaults to false.",
         abbr: "s",
+        negatable: false,
+      ),
+      timed: (
+        name: "timed",
+        help:
+            "Whether to time how long it takes to generate the number. Defaults to false.",
+        abbr: "t",
         negatable: false,
       ),
       verbose: (
@@ -415,6 +429,9 @@ final class RandomNumberCommandData {
           case 'secure':
             object.secure = true;
             break;
+          case 'timed':
+            object.timed = true;
+            break;
           case 'verbose':
             object.verbose = true;
             break;
@@ -499,6 +516,9 @@ final class RandomNumberCommandData {
             throw ParseException(null, object, object.usage());
           case 's':
             object.secure = !object.secure;
+            break;
+          case 't':
+            object.timed = !object.timed;
             break;
           default:
             throw ParseException(

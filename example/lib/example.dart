@@ -6,7 +6,8 @@
 // This will be able to:
 // - Generate a random number between 1 and 100.
 // - Have optional `--min` and `--max` options for tuning the range.
-// - Have an option `--secure` flag for making the RNG use `Random.secure`. For a bonus, we'll also let this have a `-s` abbreviation!
+// - Have an optional `--secure` flag for making the RNG use `Random.secure`. For a bonus, we'll also let this have a `-s` abbreviation!
+// - We'll also have a `--timed` flag for debugging.
 library;
 
 import 'dart:math';
@@ -77,6 +78,10 @@ class RandomNumberCommand extends BaseCommand {
   @Flag("secure", abbr: "s", help: "Whether to make this RNG secure. Defaults to false.")
   bool secure = false;
 
+  // Since this one is also not late, and we put a default, the flag will default to false.
+  @Flag("timed", abbr: "t", help: "Whether to time how long it takes to generate the number. Defaults to false.")
+  bool timed = false;
+
   // Run our program! All of our properties, like min, max, secure, and even random, are available here!
   @override
   void onRun() {
@@ -84,8 +89,13 @@ class RandomNumberCommand extends BaseCommand {
     if (min >= max) throw RangeError("min must be lesser than max.");
 
     final Random random = (secure ? .secure() : .new());
+    final stopwatch = Stopwatch()..start();
+
     final result = random.nextInt((max - min) + 1) + min;
+    stopwatch.stop();
+
     print(result);
+    if (timed) print("Time: ${stopwatch.elapsedMicroseconds}mcs");
   }
 
   // Build our help, but this time with options instead of subcommands.
