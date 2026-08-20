@@ -219,13 +219,13 @@ class CommandGenerator extends GeneratorForSuperclass<Command> {
     final arguments = allFields(element).map((x) {
       final annotation = getAnnotation(x, [.argument]);
       if (annotation == null) return null;
-      return ArgumentElement(name: getField(annotation, "name")!.toStringValue()!, help: getField(annotation, "help")?.toStringValue(), type: x.type, field: x, annotation: annotation, optional: x.type.nullabilitySuffix == .question);
+      return ArgumentElement(name: getField(annotation, "name")!.toStringValue()!, help: getField(annotation, "help")?.toStringValue(), type: x.type, field: x, annotation: annotation, optional: !x.isLate);
     }).whereType<ArgumentElement>();
 
     final options = allFields(element).map((x) {
       final annotation = getAnnotation(x, [.option]);
       if (annotation == null) return null;
-      return OptionElement(name: getField(annotation, "name")!.toStringValue()!, help: getField(annotation, "help")?.toStringValue(), type: x.type, field: x, annotation: annotation, optional: x.type.nullabilitySuffix == .question);
+      return OptionElement(name: getField(annotation, "name")!.toStringValue()!, help: getField(annotation, "help")?.toStringValue(), type: x.type, field: x, annotation: annotation, optional: !x.isLate);
     }).whereType<OptionElement>();
 
     final multiOptions = allFields(element).map((x) {
@@ -293,7 +293,7 @@ bool runCommands(List<String> arguments) {
 
 extension ${element.name}Help on ${element.name} {
   String usage() {
-    return [name, ...[${flags.map((x) => '"$x"').join(", ")}], ...[${options.map((x) => '"$x"').join(", ")}], ...[${arguments.map((x) => '"$x"').join(", ")}], if (restName != null) "...\$restName"].join(" ");
+    return [name, ...[${flags.map((x) => '"$x"').join(", ")}], ...[${options.map((x) => '"$x"').join(", ")}], ...[${arguments.map((x) => '"$x"').join(", ")}], if (settings.restUsageName != null) "...\${settings.restUsageName}"].join(" ");
   }
 
   ${allBlank("Arguments", "ArgumentData", arguments)}
@@ -332,13 +332,10 @@ final class ${element.internalName} {
       _runFromList(arguments, 0);
       return true;
     } on ParseException catch (e) {
-      _debug(() => e.toString());
-      final object = ${element.name}();
-
-      print(e.message);
-      print("Usage: \${object.usage()}");
+      if (e.message != null) print(e.message);
+      print("Usage: \${e.usage}");
       print("");
-      print(object.buildHelp());
+      print(e.object.buildHelp());
 
       return false;
     }
@@ -353,16 +350,25 @@ final class ${element.internalName} {
       }
     }
 
+    final object = ${element.name}();
+
+    if (arguments.contains("-h") || arguments.contains("--help")) {
+      throw ParseException(null, object, object.usage());
+    }
+
+    if (object.settings.subcommandsOnly) {
+      throw ParseException("Subcommand is required.\\nAvailable options: ${subcommands.map((x) => x.name).join(", ")}", object, object.usage());
+    }
+
     // Makes it easy to get the next item when parsing things such as options
     final iterator = arguments.iterator;
-    final object = ${element.name}();
     final maxPos = ${arguments.length - 1};
 
     final List<String> rest = [];
     final Set<String> setOptions = {};
     final Map<String, int> setMultiOptions = {};
 
-    int pos = 0;
+    int pos = index;
 
     for (int i = 0; i < index; i++) {
       iterator.moveNext();
@@ -373,6 +379,7 @@ final class ${element.internalName} {
 
       if (arg.startsWith("--")) {
         switch (arg.replaceFirst("--", "")) {
+          case 'help': throw ParseException(null, object, object.usage());
           ${flags.map((element) {
             return "case '${element.name}': object.${element.field.name} = true; break;";
           }).join("\n")}
@@ -389,13 +396,13 @@ final class ${element.internalName} {
               }
 
               if (!iterator.moveNext()) {
-                throw ParseException("Expected value for option '${element.name}'.");
+                throw ParseException("Expected value for option '${element.name}'.", object, object.usage());
               }
 
               final value = converter.convert(iterator.current);
 
               if (value == null) {
-                throw AdvancedParseException(converter.typePretty ?? "${element.type.getDisplayString(withNullability: false)}", arg, converter.help());
+                throw AdvancedParseException(converter.typePretty ?? "${element.type.getDisplayString(withNullability: false)}", arg, converter.help(), object, object.usage());
               }
 
               object.${element.field.name} = value;
@@ -413,13 +420,13 @@ final class ${element.internalName} {
               }
 
               if (!iterator.moveNext()) {
-                throw ParseException("Expected value for option '${element.name}'.");
+                throw ParseException("Expected value for option '${element.name}'.", object, object.usage());
               }
 
               final value = converter.convert(iterator.current);
 
               if (value == null) {
-                throw AdvancedParseException(converter.typePretty ?? "${element.type.getDisplayString(withNullability: false)}", arg, converter.help());
+                throw AdvancedParseException(converter.typePretty ?? "${element.type.getDisplayString(withNullability: false)}", arg, converter.help(), object, object.usage());
               }
 
               object.${element.field.name}.add(value);
@@ -427,14 +434,15 @@ final class ${element.internalName} {
               break;
             """.trim();
           }).join("\n")}
-          default: throw ParseException("Invalid flag/option: \$arg");
+          default: throw ParseException("Invalid flag/option: \$arg", object, object.usage());
         }
       } else if (arg.startsWith("-")) {
         switch (arg.replaceFirst("-", "")) {
+          case 'h': throw ParseException(null, object, object.usage());
           ${flags.where((x) => x.hasAbbr).map((element) {
             return "case '${element.abbr}': object.${element.field.name} = !object.${element.field.name}; break;";
           }).join("\n")}
-          default: throw ParseException("Invalid flag/option: \$arg");
+          default: throw ParseException("Invalid flag/option: \$arg", object, object.usage());
         }
       } else if (pos <= maxPos) {
         final target = _positional[pos];
@@ -447,23 +455,28 @@ final class ${element.internalName} {
         final value = converter.convert(arg);
 
         if (value == null) {
-          throw AdvancedParseException(converter.typePretty ?? target.type.toString(), arg, converter.help());
+          throw AdvancedParseException(converter.typePretty ?? target.type.toString(), arg, converter.help(), object, object.usage());
         }
 
         target.set(object, value);
         pos++;
       } else {
+        if (!object.settings.allowRest) {
+          throw ParseException("Too many arguments. Expected ${arguments.length}, but got an extra: '\$arg'", object, object.usage());
+        }
+
         rest.add(arg);
+        pos++;
       }
     }
 
     if (_positional.elementAtOrNull(pos)?.required == true) {
-      throw ParseException("Positional argument '\${_positional[pos].name}' is required.");
+      throw ParseException("Positional argument '\${_positional[pos].name}' is required.", object, object.usage());
     }
 
     for (final String name in [${options.where((x) => !x.optional).map((x) => x.name.quoted).join(", ")}]) {
       if (!setOptions.contains(name)) {
-        throw ParseException("Option '\$name' is required.");
+        throw ParseException("Option '\$name' is required.", object, object.usage());
       }
     }
 
@@ -472,11 +485,11 @@ final class ${element.internalName} {
       final count = setMultiOptions[name];
 
       if (count == null) {
-        throw ParseException("Multi-option '\$name' requires at least \$min items.");
+        throw ParseException("Multi-option '\$name' requires at least \$min items.", object, object.usage());
       }
 
       if (count < min) {
-        throw ParseException("Multi-option '\$name' requires at least \$min items.");
+        throw ParseException("Multi-option '\$name' requires at least \$min items.", object, object.usage());
       }
     }
 

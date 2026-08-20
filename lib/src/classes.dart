@@ -4,10 +4,17 @@ import 'package:advanced_cli/src/types.dart';
 import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
 
+class CommandSettings {
+  final bool subcommandsOnly;
+  final bool allowRest;
+  final String? restUsageName;
+
+  new({this.subcommandsOnly = false, this.allowRest = false, this.restUsageName});
+}
+
 abstract class Command {
   String get name;
-  String? get restName => null;
-
+  CommandSettings get settings => .new();
   List<Converter> get converters => [];
 
   @nonVirtual
