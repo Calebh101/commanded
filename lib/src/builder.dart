@@ -1,3 +1,5 @@
+// ignore_for_file: public_member_api_docs
+
 import 'package:commands/src/classes.dart';
 import 'package:commands/src/generator_for_superclass.dart';
 import 'package:analyzer/dart/constant/value.dart';
@@ -56,7 +58,7 @@ abstract class ParameterElement {
   final FieldElement field;
   final DartObject annotation;
 
-  new({required this.name, required this.help, required this.field, required this.annotation});
+  ParameterElement({required this.name, required this.help, required this.field, required this.annotation});
 
   String toRecord();
 
@@ -382,6 +384,11 @@ final class ${element.internalName} {
 
     final object = ${element.name}();
 
+    for (final converter in object.converters) {
+      if (converter is! EnumConverter) continue;
+      if (converter.type == Enum) throw Exception("You must specify a type for EnumConverter. Trust me, I learned this the hard way.");
+    }
+
     if (arguments.contains("-h") || arguments.contains("--help")) {
       throw ParseException(null, object, object.usage);
     }
@@ -434,7 +441,7 @@ final class ${element.internalName} {
               final value = converter.convert(iterator.current);
 
               if (value == null) {
-                throw ParseException.advanced(converter.typePretty ?? "${element.type.getDisplayString(withNullability: false)}", arg, converter.help(), object, object.usage);
+                throw ParseException.fromConversionError(converter.typePretty ?? "${element.type.getDisplayString(withNullability: false)}", arg, converter.help(), object, object.usage);
               }
 
               object.${element.field.name} = value;
@@ -458,7 +465,7 @@ final class ${element.internalName} {
               final value = converter.convert(iterator.current);
 
               if (value == null) {
-                throw ParseException.advanced(converter.typePretty ?? "${element.type.getDisplayString(withNullability: false)}", arg, converter.help(), object, object.usage);
+                throw ParseException.fromConversionError(converter.typePretty ?? "${element.type.getDisplayString(withNullability: false)}", arg, converter.help(), object, object.usage);
               }
 
               object.${element.field.name}.add(value);
@@ -487,7 +494,7 @@ final class ${element.internalName} {
         final value = converter.convert(arg);
 
         if (value == null) {
-          throw ParseException.advanced(converter.typePretty ?? target.type.toString(), arg, converter.help(), object, object.usage);
+          throw ParseException.fromConversionError(converter.typePretty ?? target.type.toString(), arg, converter.help(), object, object.usage);
         }
 
         target.set(object, value);

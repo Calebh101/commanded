@@ -13,10 +13,13 @@
 
 include: package:lints/recommended.yaml
 
+linter:
+  rules:
+    public_member_api_docs: true
+
 analyzer:
   errors:
     implementation_imports: ignore
-    public_member_api_docs: info
 
 # Uncomment the following section to specify additional rules.
 

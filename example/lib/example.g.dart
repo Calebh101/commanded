@@ -73,16 +73,12 @@ final class ParentCommandData {
   static final List<PositionalArgumentData> _positional = [];
 
   // ignore: unused_element
-  static void _debug(String Function() input) {
-    print('[Debug] [ParentCommand] ${input()}');
-  }
+  static void _debug(String Function() input) {}
 
   static bool runFromList(List<String> arguments) {
     try {
-      final stopwatch = Stopwatch()..start();
       _runFromList(arguments, 0);
-      stopwatch.stop();
-      _debug(() => "Elapsed time: ${stopwatch.elapsedMicroseconds}us");
+
       return true;
     } on ParseException catch (e) {
       if (e.message != null) print(e.message);
@@ -105,6 +101,14 @@ final class ParentCommandData {
     }
 
     final object = ParentCommand();
+
+    for (final converter in object.converters) {
+      if (converter is! EnumConverter) continue;
+      if (converter.type == Enum)
+        throw Exception(
+          "You must specify a type for EnumConverter. Trust me, I learned this the hard way.",
+        );
+    }
 
     if (arguments.contains("-h") || arguments.contains("--help")) {
       throw ParseException(null, object, object.usage);
@@ -176,7 +180,7 @@ final class ParentCommandData {
         final value = converter.convert(arg);
 
         if (value == null) {
-          throw ParseException.advanced(
+          throw ParseException.fromConversionError(
             converter.typePretty ?? target.type.toString(),
             arg,
             converter.help(),
@@ -378,16 +382,12 @@ final class RandomNumberCommandData {
   static final List<PositionalArgumentData> _positional = [];
 
   // ignore: unused_element
-  static void _debug(String Function() input) {
-    print('[Debug] [RandomNumberCommand] ${input()}');
-  }
+  static void _debug(String Function() input) {}
 
   static bool runFromList(List<String> arguments) {
     try {
-      final stopwatch = Stopwatch()..start();
       _runFromList(arguments, 0);
-      stopwatch.stop();
-      _debug(() => "Elapsed time: ${stopwatch.elapsedMicroseconds}us");
+
       return true;
     } on ParseException catch (e) {
       if (e.message != null) print(e.message);
@@ -405,6 +405,14 @@ final class RandomNumberCommandData {
     }
 
     final object = RandomNumberCommand();
+
+    for (final converter in object.converters) {
+      if (converter is! EnumConverter) continue;
+      if (converter.type == Enum)
+        throw Exception(
+          "You must specify a type for EnumConverter. Trust me, I learned this the hard way.",
+        );
+    }
 
     if (arguments.contains("-h") || arguments.contains("--help")) {
       throw ParseException(null, object, object.usage);
@@ -472,7 +480,7 @@ final class RandomNumberCommandData {
             final value = converter.convert(iterator.current);
 
             if (value == null) {
-              throw ParseException.advanced(
+              throw ParseException.fromConversionError(
                 converter.typePretty ?? "int",
                 arg,
                 converter.help(),
@@ -505,7 +513,7 @@ final class RandomNumberCommandData {
             final value = converter.convert(iterator.current);
 
             if (value == null) {
-              throw ParseException.advanced(
+              throw ParseException.fromConversionError(
                 converter.typePretty ?? "int",
                 arg,
                 converter.help(),
@@ -560,7 +568,7 @@ final class RandomNumberCommandData {
         final value = converter.convert(arg);
 
         if (value == null) {
-          throw ParseException.advanced(
+          throw ParseException.fromConversionError(
             converter.typePretty ?? target.type.toString(),
             arg,
             converter.help(),
@@ -734,16 +742,12 @@ final class EchoCommandData {
   static final List<PositionalArgumentData> _positional = [];
 
   // ignore: unused_element
-  static void _debug(String Function() input) {
-    print('[Debug] [EchoCommand] ${input()}');
-  }
+  static void _debug(String Function() input) {}
 
   static bool runFromList(List<String> arguments) {
     try {
-      final stopwatch = Stopwatch()..start();
       _runFromList(arguments, 0);
-      stopwatch.stop();
-      _debug(() => "Elapsed time: ${stopwatch.elapsedMicroseconds}us");
+
       return true;
     } on ParseException catch (e) {
       if (e.message != null) print(e.message);
@@ -761,6 +765,14 @@ final class EchoCommandData {
     }
 
     final object = EchoCommand();
+
+    for (final converter in object.converters) {
+      if (converter is! EnumConverter) continue;
+      if (converter.type == Enum)
+        throw Exception(
+          "You must specify a type for EnumConverter. Trust me, I learned this the hard way.",
+        );
+    }
 
     if (arguments.contains("-h") || arguments.contains("--help")) {
       throw ParseException(null, object, object.usage);
@@ -827,7 +839,7 @@ final class EchoCommandData {
             final value = converter.convert(iterator.current);
 
             if (value == null) {
-              throw ParseException.advanced(
+              throw ParseException.fromConversionError(
                 converter.typePretty ?? "int",
                 arg,
                 converter.help(),
@@ -876,7 +888,7 @@ final class EchoCommandData {
         final value = converter.convert(arg);
 
         if (value == null) {
-          throw ParseException.advanced(
+          throw ParseException.fromConversionError(
             converter.typePretty ?? target.type.toString(),
             arg,
             converter.help(),

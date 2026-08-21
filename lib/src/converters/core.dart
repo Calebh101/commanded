@@ -3,6 +3,9 @@ import 'dart:convert';
 import 'package:commands/src/classes.dart';
 import 'package:collection/collection.dart';
 
+/// Converts into `bool`.
+///
+/// Accepts `y`, `yes`, `true`, or numbers.
 class BoolConverter extends Converter<bool> {
   @override
   convert(String input) {
@@ -10,15 +13,18 @@ class BoolConverter extends Converter<bool> {
     final number = num.tryParse(value);
 
     if (number != null) return number > 0;
-    return value == "y" || value == "yes" || value == "true";
+    if (value == "y" || value == "yes" || value == "true") return true;
+    if (value == "n" || value == "no" || value == "false") return false;
+    return null;
   }
 
   @override
   String help() {
-    return "Supported values: 0/1, y, yes, true";
+    return "Supported values: 0/1, y/n, yes/no, true/false";
   }
 }
 
+/// Converts into `Double` using `tryParse`.
 class DoubleConverter extends Converter<double> {
   @override
   convert(String input) {
@@ -26,26 +32,46 @@ class DoubleConverter extends Converter<double> {
   }
 }
 
-class BasicEnumConverter<T extends Enum> extends Converter<T> {
+/// Converts enums from strings.
+///
+/// This converter first tries to see if an index was provided, then tries that.
+///
+/// Then it uses the enum's values' names (or [getName]).
+///
+/// **IMPORTANT!** You must specify a type argument with this converter! You **will** see a runtime exception if you ignore this!
+class EnumConverter<T extends Enum> extends Converter<T> {
+  /// A list of the enum's values.<br>
+  /// All that's required here is just writing `.values`.
   final List<T> values;
 
-  BasicEnumConverter(this.values);
+  /// Use this if you have some other way to get an enum's name other than the builtin `name` property.
+  final String Function(T value)? getName;
+
+  /// Converts enums from strings.
+  ///
+  /// This converter first tries to see if an index was provided, then tries that.
+  ///
+  /// Then it uses the enum's values' names (or [getName]).
+  ///
+  /// **IMPORTANT!** You must specify a type argument with this converter! You **will** see a runtime exception if you ignore this!
+  EnumConverter(this.values, {this.getName});
 
   @override
   convert(String input) {
     final value = input.trim().toLowerCase();
     final i = int.tryParse(value);
 
-    if (i != null && i < values.length) return values[i];
-    return values.firstWhereOrNull((x) => x.name == value);
+    if (i != null && i < values.length) return values.elementAtOrNull(i);
+    return values.firstWhereOrNull((x) => (getName?.call(x) ?? x.name) == value);
   }
 
   @override
   String help() {
-    return "Supported values: ${values.map((x) => x.name).join(", ")}";
+    return "Supported values: ${values.map((x) => getName?.call(x) ?? x.name).join(", ")}";
   }
 }
 
+/// Converts into `int` using `tryParse`.
 class IntConverter extends Converter<int> {
   @override
   convert(String input) {
@@ -53,7 +79,8 @@ class IntConverter extends Converter<int> {
   }
 }
 
-class JsonConverter extends Converter<dynamic> {
+/// Converts the input into `Object` using `jsonDecode` from `dart:convert`.
+class JsonConverter extends Converter<Object> {
   @override
   convert(String input) {
     try {
@@ -64,6 +91,7 @@ class JsonConverter extends Converter<dynamic> {
   }
 }
 
+/// Converts into `Double` using `tryParse`.
 class NumConverter extends Converter<num> {
   @override
   convert(String input) {
@@ -71,6 +99,7 @@ class NumConverter extends Converter<num> {
   }
 }
 
+/// Returns what's put into it.
 class StringConverter extends Converter<String> {
   @override
   convert(String input) {

@@ -10,7 +10,7 @@ class CommandSettings {
   final bool allowTrailingOptions;
   final String? restUsageName;
 
-  new({this.subcommandsOnly = false, this.allowRest = false, this.allowTrailingOptions = true, this.restUsageName});
+  const CommandSettings({this.subcommandsOnly = false, this.allowRest = false, this.allowTrailingOptions = true, this.restUsageName});
 }
 
 abstract class Command {
@@ -104,7 +104,7 @@ class _Item {
   final String? left;
   final String? right;
 
-  new(this.type, this.left, this.right);
+  _Item(this.type, this.left, this.right);
 
   String getLeft() {
     return left == null ? "" : switch (type) {

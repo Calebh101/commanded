@@ -34,6 +34,8 @@ abstract class BaseCommand extends Command {
 // We're creating this command as a base for our other subcommands.
 // One important limitation is that flags defined in this command won't apply to subcommands.
 // For global options, we have to create/edit classes like BaseCommand.
+//
+// See the very bottom of the file for why we use MainCommand here.
 @MainCommand()
 class ParentCommand extends Command {
   // The binary name. This appears in the usage.
@@ -239,6 +241,7 @@ class EchoCommand extends BaseCommand {
 
 // Since we put @MainCommand() above our... main command, we get this special function called runCommands.
 // This simply points to ParentCommandData.runFromList. We could call this manually, but using runCommands feels so much more professional, ya know?
+// However, it's absolutely still possible to call ParentCommandData.runFromList, or any other command; this is just a shortcut.
 void main(List<String> arguments) {
   runCommands(arguments);
 }
