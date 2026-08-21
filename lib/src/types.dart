@@ -1,4 +1,4 @@
-import 'package:advanced_cli/src/classes.dart';
+import 'package:commands/src/classes.dart';
 
 typedef ArgumentData = ({String name, String? help, bool required});
 typedef FlagData = ({String name, String? help, String? abbr, bool negatable});

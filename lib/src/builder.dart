@@ -1,5 +1,5 @@
-import 'package:advanced_cli/src/classes.dart';
-import 'package:advanced_cli/src/generator_for_superclass.dart';
+import 'package:commands/src/classes.dart';
+import 'package:commands/src/generator_for_superclass.dart';
 import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
@@ -31,7 +31,7 @@ extension on String {
 Builder commandBuilder(BuilderOptions options) {
   return SharedPartBuilder(
     [CommandGenerator()],
-    'advanced_cli',
+    'commands',
   );
 }
 

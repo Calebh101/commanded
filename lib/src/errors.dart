@@ -1,4 +1,4 @@
-import 'package:advanced_cli/advanced_cli.dart';
+import 'package:commands/commands.dart';
 
 class ConverterNotFoundError extends Error {
   final String message;

@@ -1,7 +1,7 @@
-name: advanced_cli
+name: commands
 description: A package to make parsing CLI arguments easier and safer.
 version: 1.0.0
-repository: https://github.com/Calebh101/advanced_cli
+repository: https://github.com/Calebh101/commands
 
 environment:
   sdk: ^3.13.0

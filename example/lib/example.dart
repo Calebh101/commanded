@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:advanced_cli/advanced_cli.dart';
+import 'package:commands/commands.dart';
 
 part 'example.g.dart';
 
