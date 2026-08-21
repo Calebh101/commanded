@@ -17,17 +17,10 @@ class ParseException implements Exception {
   final String usage;
 
   new(this.message, this.object, this.usage);
+  ParseException.advanced(String type, String got, String? help, this.object, this.usage) : message = ["Couldn't parse input to type '$type': $got", ?help].join("\n");
 
   @override
   String toString() {
     return "ParseException: $message";
   }
-}
-
-class AdvancedParseException extends ParseException {
-  final String type;
-  final String got;
-  final String? help;
-
-  AdvancedParseException(this.type, this.got, this.help, Command object, String usage) : super(["Couldn't parse input to type '$type': $got", ?help].join("\n"), object, usage);
 }

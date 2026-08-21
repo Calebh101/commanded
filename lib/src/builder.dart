@@ -36,15 +36,17 @@ Builder commandBuilder(BuilderOptions options) {
 }
 
 enum AnnotationType {
-  option("Option"),
-  multiOption("MultiOption"),
-  argument("Argument"),
-  flag("Flag"),
-  subcommand("Subcommand"),
+  option("option", "Option"),
+  multiOption("multi-option", "MultiOption"),
+  argument("argument", "Argument"),
+  flag("flag", "Flag"),
+  subcommand("subcommand", "Subcommand"),
   ;
 
+  final String pretty;
   final String className;
-  const AnnotationType(this.className);
+
+  const AnnotationType(this.pretty, this.className);
 }
 
 abstract class ParameterElement {
@@ -195,6 +197,21 @@ class CommandGenerator extends GeneratorForSuperclass<Command> {
     return result;
   }
 
+  String validateName(String name, AnnotationType type) {
+    if (!RegExp(r'^[a-z0-9]+(?:-[a-z0-9]+)*$').hasMatch(name)) {
+      throw InvalidGenerationSourceError("Invalid name for ${type.pretty}: '$name'\nNames need to be in strict snake-case, with no capitals");
+    }
+
+    return name;
+  }
+
+  String? validateAbbr(String? abbr, AnnotationType type) {
+    if (abbr == null) return null;
+    if (abbr.length != 1) throw InvalidGenerationSourceError("Invalid abbreviation: '$abbr'\nAbbreviations can only be 1 character.");
+    if (!RegExp(r'^[a-z0-9]$').hasMatch(abbr)) throw InvalidGenerationSourceError("Invalid abbreviation: '$abbr'\nAbbreviations can only be a lowercase letter or a number.");
+    return abbr;
+  }
+
   @override
   dynamic generateForClass(ClassElement element, BuildStep buildStep) {
     if (element.isAbstract) return "";
@@ -207,31 +224,38 @@ class CommandGenerator extends GeneratorForSuperclass<Command> {
     final subcommands = allFields(element).map((x) {
       final annotation = getAnnotation(x, [.subcommand]);
       if (annotation == null) return null;
-      return SubcommandElement(name: getField(annotation, "name")!.toStringValue()!, help: getField(annotation, "help")?.toStringValue(), field: x, annotation: annotation);
+      return SubcommandElement(name: validateName(getField(annotation, "name")!.toStringValue()!, .subcommand), help: getField(annotation, "help")?.toStringValue(), field: x, annotation: annotation);
     }).whereType<SubcommandElement>();
 
     final flags = allFields(element).map((x) {
       final annotation = getAnnotation(x, [.flag]);
       if (annotation == null) return null;
-      return FlagElement(name: getField(annotation, "name")!.toStringValue()!, help: getField(annotation, "help")?.toStringValue(), negatable: getField(annotation, "negatable")?.toBoolValue() ?? false, abbr: getField(annotation, "abbr")?.toStringValue(), field: x, annotation: annotation);
+
+      final name = validateName(getField(annotation, "name")!.toStringValue()!, .flag);
+      final abbr = validateAbbr(getField(annotation, "abbr")?.toStringValue(), .flag);
+
+      if (name == "help") throw InvalidGenerationSourceError("Flag --help is already automatically generated.");
+      if (abbr == "h") throw InvalidGenerationSourceError("Flag --help (abbreviation -h) is already automatically generated.");
+
+      return FlagElement(name: name, help: getField(annotation, "help")?.toStringValue(), negatable: getField(annotation, "negatable")?.toBoolValue() ?? false, abbr: abbr, field: x, annotation: annotation);
     }).whereType<FlagElement>();
 
     final arguments = allFields(element).map((x) {
       final annotation = getAnnotation(x, [.argument]);
       if (annotation == null) return null;
-      return ArgumentElement(name: getField(annotation, "name")!.toStringValue()!, help: getField(annotation, "help")?.toStringValue(), type: x.type, field: x, annotation: annotation, optional: !x.isLate);
+      return ArgumentElement(name: validateName(getField(annotation, "name")!.toStringValue()!, .argument), help: getField(annotation, "help")?.toStringValue(), type: x.type, field: x, annotation: annotation, optional: !x.isLate);
     }).whereType<ArgumentElement>();
 
     final options = allFields(element).map((x) {
       final annotation = getAnnotation(x, [.option]);
       if (annotation == null) return null;
-      return OptionElement(name: getField(annotation, "name")!.toStringValue()!, help: getField(annotation, "help")?.toStringValue(), type: x.type, field: x, annotation: annotation, optional: !x.isLate);
+      return OptionElement(name: validateName(getField(annotation, "name")!.toStringValue()!, .option), help: getField(annotation, "help")?.toStringValue(), type: x.type, field: x, annotation: annotation, optional: !x.isLate);
     }).whereType<OptionElement>();
 
     final multiOptions = allFields(element).map((x) {
       final annotation = getAnnotation(x, [.multiOption]);
       if (annotation == null) return null;
-      final name = getField(annotation, "name")!.toStringValue()!;
+      final name = validateName(getField(annotation, "name")!.toStringValue()!, .multiOption);
 
       if (!x.type.isDartCoreList) {
         throw InvalidGenerationSourceError("Multi-option $name needs to be of type List.");
@@ -292,8 +316,12 @@ bool runCommands(List<String> arguments) {
 """ : ""}
 
 extension ${element.name}Help on ${element.name} {
-  String usage() {
-    return [name, ...[${flags.map((x) => '"$x"').join(", ")}], ...[${options.map((x) => '"$x"').join(", ")}], ...[${arguments.map((x) => '"$x"').join(", ")}], if (settings.restUsageName != null) "...\${settings.restUsageName}"].join(" ");
+  UsageBuilder defaultUsageBuilder() {
+    return UsageBuilder()${flags.map((x) => "..addFlag(flags.${x.field.name})").join("")}${options.map((x) => "..addOption(options.${x.field.name})").join("")}${multiOptions.map((x) => "..addMultiOption(multiOptions.${x.field.name})").join("")}${arguments.map((x) => "..addArgument(arguments.${x.field.name})").join("")}..addCustom(settings.restUsageName != null ? "...\${settings.restUsageName}" : null);
+  }
+
+  String get usage {
+    return (buildUsage() ?? defaultUsageBuilder()).toString();
   }
 
   ${allBlank("Arguments", "ArgumentData", arguments)}
@@ -329,7 +357,9 @@ final class ${element.internalName} {
 
   static bool runFromList(List<String> arguments) {
     try {
+      ${debug ? "final stopwatch = Stopwatch()..start();" : ""}
       _runFromList(arguments, 0);
+      ${debug ? 'stopwatch.stop(); _debug(() => "Elapsed time: \${stopwatch.elapsedMicroseconds}us");' : ""}
       return true;
     } on ParseException catch (e) {
       if (e.message != null) print(e.message);
@@ -353,11 +383,11 @@ final class ${element.internalName} {
     final object = ${element.name}();
 
     if (arguments.contains("-h") || arguments.contains("--help")) {
-      throw ParseException(null, object, object.usage());
+      throw ParseException(null, object, object.usage);
     }
 
     if (object.settings.subcommandsOnly) {
-      throw ParseException("Subcommand is required.\\nAvailable options: ${subcommands.map((x) => x.name).join(", ")}", object, object.usage());
+      throw ParseException("Subcommand is required.\\nAvailable options: ${subcommands.map((x) => x.name).join(", ")}", object, object.usage);
     }
 
     // Makes it easy to get the next item when parsing things such as options
@@ -368,7 +398,8 @@ final class ${element.internalName} {
     final Set<String> setOptions = {};
     final Map<String, int> setMultiOptions = {};
 
-    int pos = index;
+    int pos = 0;
+    bool foundArgument = false;
 
     for (int i = 0; i < index; i++) {
       iterator.moveNext();
@@ -376,10 +407,11 @@ final class ${element.internalName} {
 
     while (iterator.moveNext()) {
       final arg = iterator.current;
+      final noOptions = foundArgument && !object.settings.allowTrailingOptions;
 
-      if (arg.startsWith("--")) {
+      if (!noOptions && arg.startsWith("--")) {
         switch (arg.replaceFirst("--", "")) {
-          case 'help': throw ParseException(null, object, object.usage());
+          case 'help': throw ParseException(null, object, object.usage);
           ${flags.map((element) {
             return "case '${element.name}': object.${element.field.name} = true; break;";
           }).join("\n")}
@@ -396,13 +428,13 @@ final class ${element.internalName} {
               }
 
               if (!iterator.moveNext()) {
-                throw ParseException("Expected value for option '${element.name}'.", object, object.usage());
+                throw ParseException("Expected value for option '${element.name}'.", object, object.usage);
               }
 
               final value = converter.convert(iterator.current);
 
               if (value == null) {
-                throw AdvancedParseException(converter.typePretty ?? "${element.type.getDisplayString(withNullability: false)}", arg, converter.help(), object, object.usage());
+                throw ParseException.advanced(converter.typePretty ?? "${element.type.getDisplayString(withNullability: false)}", arg, converter.help(), object, object.usage);
               }
 
               object.${element.field.name} = value;
@@ -420,13 +452,13 @@ final class ${element.internalName} {
               }
 
               if (!iterator.moveNext()) {
-                throw ParseException("Expected value for option '${element.name}'.", object, object.usage());
+                throw ParseException("Expected value for option '${element.name}'.", object, object.usage);
               }
 
               final value = converter.convert(iterator.current);
 
               if (value == null) {
-                throw AdvancedParseException(converter.typePretty ?? "${element.type.getDisplayString(withNullability: false)}", arg, converter.help(), object, object.usage());
+                throw ParseException.advanced(converter.typePretty ?? "${element.type.getDisplayString(withNullability: false)}", arg, converter.help(), object, object.usage);
               }
 
               object.${element.field.name}.add(value);
@@ -434,15 +466,15 @@ final class ${element.internalName} {
               break;
             """.trim();
           }).join("\n")}
-          default: throw ParseException("Invalid flag/option: \$arg", object, object.usage());
+          default: throw ParseException("Invalid flag/option: \$arg", object, object.usage);
         }
-      } else if (arg.startsWith("-")) {
+      } else if (!noOptions && arg.startsWith("-")) {
         switch (arg.replaceFirst("-", "")) {
-          case 'h': throw ParseException(null, object, object.usage());
+          case 'h': throw ParseException(null, object, object.usage);
           ${flags.where((x) => x.hasAbbr).map((element) {
             return "case '${element.abbr}': object.${element.field.name} = !object.${element.field.name}; break;";
           }).join("\n")}
-          default: throw ParseException("Invalid flag/option: \$arg", object, object.usage());
+          default: throw ParseException("Invalid flag/option: \$arg", object, object.usage);
         }
       } else if (pos <= maxPos) {
         final target = _positional[pos];
@@ -455,28 +487,30 @@ final class ${element.internalName} {
         final value = converter.convert(arg);
 
         if (value == null) {
-          throw AdvancedParseException(converter.typePretty ?? target.type.toString(), arg, converter.help(), object, object.usage());
+          throw ParseException.advanced(converter.typePretty ?? target.type.toString(), arg, converter.help(), object, object.usage);
         }
 
         target.set(object, value);
         pos++;
+        foundArgument = true;
       } else {
         if (!object.settings.allowRest) {
-          throw ParseException("Too many arguments. Expected ${arguments.length}, but got an extra: '\$arg'", object, object.usage());
+          throw ParseException("Too many arguments. Expected ${arguments.length}, but got an extra: '\$arg'", object, object.usage);
         }
 
         rest.add(arg);
         pos++;
+        foundArgument = true;
       }
     }
 
     if (_positional.elementAtOrNull(pos)?.required == true) {
-      throw ParseException("Positional argument '\${_positional[pos].name}' is required.", object, object.usage());
+      throw ParseException("Positional argument '\${_positional[pos].name}' is required.", object, object.usage);
     }
 
     for (final String name in [${options.where((x) => !x.optional).map((x) => x.name.quoted).join(", ")}]) {
       if (!setOptions.contains(name)) {
-        throw ParseException("Option '\$name' is required.", object, object.usage());
+        throw ParseException("Option '\$name' is required.", object, object.usage);
       }
     }
 
@@ -485,15 +519,18 @@ final class ${element.internalName} {
       final count = setMultiOptions[name];
 
       if (count == null) {
-        throw ParseException("Multi-option '\$name' requires at least \$min items.", object, object.usage());
+        throw ParseException("Multi-option '\$name' requires at least \$min items.", object, object.usage);
       }
 
       if (count < min) {
-        throw ParseException("Multi-option '\$name' requires at least \$min items.", object, object.usage());
+        throw ParseException("Multi-option '\$name' requires at least \$min items.", object, object.usage);
       }
     }
 
     object.rest = rest;
+    final validate = object.validate();
+
+    if (validate != null) throw ParseException(validate, object, object.usage);
     object.onRun();
   }
 }

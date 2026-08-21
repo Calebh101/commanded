@@ -70,7 +70,7 @@ abstract class GeneratorForSuperclass<T> extends Generator {
         continue;
       }
 
-      if (!typeChecker.isSuperTypeOf(supertype)) {
+      if (!typeChecker.isExactlyType(supertype) && !typeChecker.isSuperTypeOf(supertype)) {
         continue;
       }
 

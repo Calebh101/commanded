@@ -7,9 +7,10 @@ import 'package:meta/meta.dart';
 class CommandSettings {
   final bool subcommandsOnly;
   final bool allowRest;
+  final bool allowTrailingOptions;
   final String? restUsageName;
 
-  new({this.subcommandsOnly = false, this.allowRest = false, this.restUsageName});
+  new({this.subcommandsOnly = false, this.allowRest = false, this.allowTrailingOptions = true, this.restUsageName});
 }
 
 abstract class Command {
@@ -22,7 +23,11 @@ abstract class Command {
 
   void onRun();
 
+  String? validate() => null;
+
   HelpBuilder buildHelp();
+
+  UsageBuilder? buildUsage() => null;
 
   @nonVirtual
   Converter? getConverter(Type type) {
@@ -115,5 +120,44 @@ class _Item {
 
   String pretty(int padding) {
     return "${getLeft().padRight(padding)}  ${right ?? ""}";
+  }
+}
+
+class UsageBuilder {
+  final List<String> _items = [];
+
+  void addArgument(ArgumentData data) {
+    _items.add(data.name.bracketsIf(!data.required));
+  }
+
+  void addFlag(FlagData data) {
+    _items.add(["--${data.name}", if (data.abbr != null) "-${data.abbr}"].join("/").brackets);
+  }
+
+  void addOption(OptionData data) {
+    _items.add(["--${data.name} <${data.name}>"].join("/").bracketsIf(!data.required));
+  }
+
+  void addMultiOption(MultiOptionData data) {
+    _items.add(["--${data.name} <${data.name}>"].join("/").bracketsIf((data.min ?? 0) < 1));
+  }
+
+  void addCustom(String? value) {
+    if (value != null) _items.add(value);
+  }
+
+  @override
+  String toString([String separator = " "]) {
+    return _items.join(separator);
+  }
+}
+
+extension on String {
+  String get brackets {
+    return "[$this]";
+  }
+
+  String bracketsIf(bool condition) {
+    return condition ? brackets : this;
   }
 }
