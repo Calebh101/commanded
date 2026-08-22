@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:commands/src/types.dart';
+import 'package:commanded/src/types.dart';
 import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
 

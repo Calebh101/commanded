@@ -1,4 +1,4 @@
-import 'package:commands/src/classes.dart';
+import 'package:commanded/src/classes.dart';
 
 /// Data for positional argument definitions.
 typedef ArgumentData = ({String name, String? help, bool required});

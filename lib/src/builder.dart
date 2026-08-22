@@ -1,7 +1,7 @@
 // ignore_for_file: public_member_api_docs
 
-import 'package:commands/src/classes.dart';
-import 'package:commands/src/generator_for_superclass.dart';
+import 'package:commanded/src/classes.dart';
+import 'package:commanded/src/generator_for_superclass.dart';
 import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';

@@ -1,4 +1,4 @@
-import 'package:commands/commands.dart';
+import 'package:commanded/src/classes.dart';
 
 /// This is thrown when a converter was looked for by the parser, but not found.
 ///

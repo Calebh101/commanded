@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:commands/src/classes.dart';
+import 'package:commanded/src/classes.dart';
 import 'package:collection/collection.dart';
 
 /// Converts into `bool`.

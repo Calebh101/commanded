@@ -6,12 +6,12 @@ targets:
 
 builders:
   commands:
-    import: "package:commands/src/builder.dart"
+    import: "package:commanded/src/builder.dart"
     builder_factories:
       - commandBuilder
     build_extensions:
       .dart:
-        - .commands.g.part
+        - .commanded.g.part
     auto_apply: root_package
     build_to: cache
     applies_builders:
