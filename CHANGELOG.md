@@ -6,3 +6,8 @@
 
 - Added converter validators.
 - Updated and added some documentation.
+
+## 0.0.2
+
+- Added field validation at build.
+- Updated documentation.

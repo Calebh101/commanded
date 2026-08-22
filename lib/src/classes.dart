@@ -261,6 +261,9 @@ class HelpBuilder extends Builder {
   ///
   /// This builder collects a list of items and renders them from top to bottom,
   /// with 2 columns: one for the names of the items, and the other for help messages.
+  ///
+  /// If you'd like to create your own functionality or stringification method,
+  /// you are able to extend this class.
   new();
 
   /// The current list of items of this builder.
@@ -358,6 +361,9 @@ class UsageBuilder extends Builder {
   ///
   /// This builder collects a list of items and renders them from left to right,
   /// joining them by a space.
+  ///
+  /// If you'd like to create your own functionality or stringification method,
+  /// you are able to extend this class.
   new();
 
   /// The current list of items of this builder.
