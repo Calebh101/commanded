@@ -23,11 +23,15 @@ extension on Element {
 }
 
 extension on VariableElement {
-  String get internalNameFromType => _internalName(type.getDisplayString(withNullability: false));
+  String get internalNameFromType => _internalName(type.displayString);
 }
 
 extension on String {
   String get quoted => '"$this"';
+}
+
+extension on DartType {
+  String get displayString => getDisplayString(withNullability: false);
 }
 
 Builder commandBuilder(BuilderOptions options) {
@@ -362,7 +366,7 @@ extension ${element.name}Help on ${element.name} {
 
 final class ${element.internalName} {
   static final List<PositionalArgumentData> _positional = [${arguments.map((arg) {
-    return "(name: '${arg.name}', type: ${arg.type.getDisplayString(withNullability: false)}, set: (Command object, dynamic value) => (object as ${element.name}).${arg.field.name} = value, required: ${!arg.optional})";
+    return "(name: '${arg.name}', type: ${arg.type.displayString}, set: (Command object, dynamic value) => (object as ${element.name}).${arg.field.name} = value, required: ${!arg.optional})";
   }).join(", ")}];
 
   // ignore: unused_element
@@ -441,10 +445,10 @@ final class ${element.internalName} {
           ${options.map((element) {
             return """case '${element.name}':
               // Converts strings into the preferred type
-              final converter = object.getConverter(${element.type.getDisplayString(withNullability: false)});
+              final converter = object.getConverter(${element.type.displayString});
 
               if (converter == null) {
-                throw ConverterNotFoundError("Converter not found for option ${element.name} and type ${element.type.getDisplayString(withNullability: false)}.");
+                throw ConverterNotFoundError("Converter not found for option ${element.name} and type ${element.type.displayString}.");
               }
 
               if (!iterator.moveNext()) {
@@ -455,13 +459,13 @@ final class ${element.internalName} {
                 final value = converter.convert(iterator.current);
 
                 if (value == null) {
-                  throw ParseException.fromConversionError(converter.typePretty ?? "${element.type.getDisplayString(withNullability: false)}", arg, converter.help(), object, object.usage);
+                  throw ParseException.fromConversionError(converter.typePretty ?? "${element.type.displayString}", arg, converter.help(), object, object.usage);
                 }
 
                 object.${element.field.name} = value;
                 setOptions.add("${element.name}");
               } catch (e) {
-                throw ParseException("An unexpected error happened while parsing argument '${element.name}':\\n\$e\\nParsing: '\$arg' to ${element.type.getDisplayString(withNullability: false)}\\nIf you are a developer, please change your converter to catch its own exceptions.", object, object.usage);
+                throw ParseException("An unexpected error happened while parsing argument '${element.name}':\\n\$e\\nParsing: '\$arg' to ${element.type.displayString}\\nIf you are a developer, please change your converter to catch its own exceptions.", object, object.usage);
               }
 
               break;
@@ -470,10 +474,10 @@ final class ${element.internalName} {
           ${multiOptions.map((element) {
             return """case '${element.name}':
               // Converts strings into the preferred type
-              final converter = object.getConverter(${element.type.getDisplayString(withNullability: false)});
+              final converter = object.getConverter(${element.type.displayString});
 
               if (converter == null) {
-                throw ConverterNotFoundError("Converter not found for multi-option ${element.name} and type List<${element.type.getDisplayString(withNullability: false)}>.");
+                throw ConverterNotFoundError("Converter not found for multi-option ${element.name} and type List<${element.type.displayString}>.");
               }
 
               if (!iterator.moveNext()) {
@@ -483,7 +487,7 @@ final class ${element.internalName} {
               final value = converter.convert(iterator.current);
 
               if (value == null) {
-                throw ParseException.fromConversionError(converter.typePretty ?? "${element.type.getDisplayString(withNullability: false)}", arg, converter.help(), object, object.usage);
+                throw ParseException.fromConversionError(converter.typePretty ?? "${element.type.displayString}", arg, converter.help(), object, object.usage);
               }
 
               object.${element.field.name}.add(value);
@@ -502,10 +506,10 @@ final class ${element.internalName} {
           ${options.where((x) => x.hasAbbr).map((element) {
             return """case '${element.abbr}':
               // Converts strings into the preferred type
-              final converter = object.getConverter(${element.type.getDisplayString(withNullability: false)});
+              final converter = object.getConverter(${element.type.displayString});
 
               if (converter == null) {
-                throw ConverterNotFoundError("Converter not found for option ${element.name} and type ${element.type.getDisplayString(withNullability: false)}.");
+                throw ConverterNotFoundError("Converter not found for option ${element.name} and type ${element.type.displayString}.");
               }
 
               if (!iterator.moveNext()) {
@@ -516,13 +520,13 @@ final class ${element.internalName} {
                 final value = converter.convert(iterator.current);
 
                 if (value == null) {
-                  throw ParseException.fromConversionError(converter.typePretty ?? "${element.type.getDisplayString(withNullability: false)}", arg, converter.help(), object, object.usage);
+                  throw ParseException.fromConversionError(converter.typePretty ?? "${element.type.displayString}", arg, converter.help(), object, object.usage);
                 }
 
                 object.${element.field.name} = value;
                 setOptions.add("${element.name}");
               } catch (e) {
-                throw ParseException("An unexpected error happened while parsing argument '${element.name}':\\n\$e\\nParsing: '\$arg' to ${element.type.getDisplayString(withNullability: false)}\\nIf you are a developer, please change your converter to catch its own exceptions.", object, object.usage);
+                throw ParseException("An unexpected error happened while parsing argument '${element.name}':\\n\$e\\nParsing: '\$arg' to ${element.type.displayString}\\nIf you are a developer, please change your converter to catch its own exceptions.", object, object.usage);
               }
 
               break;
@@ -531,10 +535,10 @@ final class ${element.internalName} {
           ${multiOptions.where((x) => x.hasAbbr).map((element) {
             return """case '${element.abbr}':
               // Converts strings into the preferred type
-              final converter = object.getConverter(${element.type.getDisplayString(withNullability: false)});
+              final converter = object.getConverter(${element.type.displayString});
 
               if (converter == null) {
-                throw ConverterNotFoundError("Converter not found for multi-option ${element.name} and type List<${element.type.getDisplayString(withNullability: false)}>.");
+                throw ConverterNotFoundError("Converter not found for multi-option ${element.name} and type List<${element.type.displayString}>.");
               }
 
               if (!iterator.moveNext()) {
@@ -544,7 +548,7 @@ final class ${element.internalName} {
               final value = converter.convert(iterator.current);
 
               if (value == null) {
-                throw ParseException.fromConversionError(converter.typePretty ?? "${element.type.getDisplayString(withNullability: false)}", arg, converter.help(), object, object.usage);
+                throw ParseException.fromConversionError(converter.typePretty ?? "${element.type.displayString}", arg, converter.help(), object, object.usage);
               }
 
               object.${element.field.name}.add(value);
