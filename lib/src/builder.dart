@@ -224,6 +224,17 @@ class CommandGenerator extends GeneratorForSuperclass<Command> {
     return abbr;
   }
 
+  void checkField(AnnotationType type, FieldElement field, String name) {
+    if (field.isExternal || field.isConst || field.isStatic) throw InvalidGenerationSourceError("Parameter '$name' cannot be const, static, or external.");
+
+    if (type == .subcommand) {
+      if (!field.isLate || !field.isFinal) throw InvalidGenerationSourceError("Subcommand '$name' should be late and final.");
+      if (field.hasInitializer) throw InvalidGenerationSourceError("Subcommand '$name' should not have an initializer.");
+    } else if (type != .multiOption) {
+      if (field.isFinal) throw InvalidGenerationSourceError("Parameter '$name' cannot be final.");
+    }
+  }
+
   @override
   dynamic generateForClass(ClassElement element, BuildStep buildStep) {
     if (element.isAbstract) return "";
@@ -236,7 +247,11 @@ class CommandGenerator extends GeneratorForSuperclass<Command> {
     final subcommands = allFields(element).map((x) {
       final annotation = getAnnotation(x, [.subcommand]);
       if (annotation == null) return null;
-      return SubcommandElement(name: validateName(getField(annotation, "name")!.toStringValue()!, .subcommand), help: getField(annotation, "help")?.toStringValue(), field: x, annotation: annotation);
+
+      final name = validateName(getField(annotation, "name")!.toStringValue()!, .subcommand);
+      checkField(.subcommand, x, name);
+
+      return SubcommandElement(name: name, help: getField(annotation, "help")?.toStringValue(), field: x, annotation: annotation);
     }).whereType<SubcommandElement>();
 
     final flags = allFields(element).map((x) {
@@ -249,19 +264,27 @@ class CommandGenerator extends GeneratorForSuperclass<Command> {
       if (name == "help") throw InvalidGenerationSourceError("Flag --help is already automatically generated.");
       if (abbr == "h") throw InvalidGenerationSourceError("Flag --help (abbreviation -h) is already automatically generated.");
 
+      checkField(.flag, x, name);
       return FlagElement(name: name, help: getField(annotation, "help")?.toStringValue(), negatable: getField(annotation, "negatable")?.toBoolValue() ?? false, abbr: abbr, field: x, annotation: annotation);
     }).whereType<FlagElement>();
 
     final arguments = allFields(element).map((x) {
       final annotation = getAnnotation(x, [.argument]);
       if (annotation == null) return null;
-      return ArgumentElement(name: validateName(getField(annotation, "name")!.toStringValue()!, .argument), help: getField(annotation, "help")?.toStringValue(), type: x.type, field: x, annotation: annotation, optional: !x.isLate);
+
+      final name = validateName(getField(annotation, "name")!.toStringValue()!, .argument);
+      checkField(.argument, x, name);
+
+      return ArgumentElement(name: name, help: getField(annotation, "help")?.toStringValue(), type: x.type, field: x, annotation: annotation, optional: !x.isLate);
     }).whereType<ArgumentElement>();
 
     final options = allFields(element).map((x) {
       final annotation = getAnnotation(x, [.option]);
       if (annotation == null) return null;
-      return OptionElement(name: validateName(getField(annotation, "name")!.toStringValue()!, .option), abbr: validateAbbr(getField(annotation, "abbr")?.toStringValue(), .option), help: getField(annotation, "help")?.toStringValue(), type: x.type, field: x, annotation: annotation, optional: !x.isLate);
+
+      final name = validateName(getField(annotation, "name")!.toStringValue()!, .option);
+      checkField(.option, x, name);
+      return OptionElement(name: name, abbr: validateAbbr(getField(annotation, "abbr")?.toStringValue(), .option), help: getField(annotation, "help")?.toStringValue(), type: x.type, field: x, annotation: annotation, optional: !x.isLate);
     }).whereType<OptionElement>();
 
     final multiOptions = allFields(element).map((x) {
@@ -273,6 +296,7 @@ class CommandGenerator extends GeneratorForSuperclass<Command> {
         throw InvalidGenerationSourceError("Multi-option $name needs to be of type List.");
       }
 
+      checkField(.multiOption, x, name);
       return MultiOptionElement(name: name, abbr: validateAbbr(getField(annotation, "abbr")?.toStringValue(), .multiOption), help: getField(annotation, "help")?.toStringValue(), type: (x.type as InterfaceType).typeArguments.first, field: x, annotation: annotation, min: getField(annotation, "min")?.toIntValue());
     }).whereType<MultiOptionElement>();
 

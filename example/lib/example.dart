@@ -54,15 +54,15 @@ class ParentCommand extends Command {
   // Define a subcommand. We can put late here instead of creating a new command.
   // The build runner only looks at the type, which is RandomNumberCommand here.
   @Subcommand("random", help: "Generate a random number.")
-  late RandomNumberCommand randomNumberCommand;
+  late final RandomNumberCommand randomNumberCommand;
 
   // Define another subcommand.
   @Subcommand("echo", help: "Echo some text.")
-  late EchoCommand echoCommand;
+  late final EchoCommand echoCommand;
 
   // Define yet another subcommand...
   @Subcommand("args", help: "Do some positional argument stuff!")
-  late PrintMyPositionalArgumentsCommand printMyPositionalArgumentsCommand;
+  late final PrintMyPositionalArgumentsCommand printMyPositionalArgumentsCommand;
 
   // Build the usage line that shows up when --help is called.
   // This is very customizable, to fit whatever style you prefer!
@@ -98,7 +98,7 @@ class RandomNumberCommand extends BaseCommand {
   @override
   String get name => "random";
 
-  // Define converters for options, multi-options, and arguments.
+  // Define converters for options, multi-options, and arguments. (Flags and subcommands don't need converters.)
   // I won't explain it all here, but for more info on this, please see the readme.
   //
   // Note: converters are required for all options, multi-options, and arguments.
@@ -129,7 +129,7 @@ class RandomNumberCommand extends BaseCommand {
   // Every time someone adds --avoid <number>, this list is added to.
   // There's an option min parameter for the annotation as well, but we don't need that.
   @MultiOption("avoid", abbr: "a", help: "Numbers to avoid choosing.")
-  List<int> avoids = [];
+  final List<int> avoids = [];
 
   // This is a validator.
   // This kinda works like Flutter's text field validator, if you've ever used that.
