@@ -114,10 +114,13 @@ class ArgumentElement extends ParameterElement {
 }
 
 class OptionElement extends ParameterElement {
+  final String? abbr;
   final DartType type;
   final bool optional;
 
-  OptionElement({required super.name, required this.type, required this.optional, required super.field, required super.annotation, required super.help});
+  bool get hasAbbr => abbr != null;
+
+  OptionElement({required super.name, required this.abbr, required this.type, required this.optional, required super.field, required super.annotation, required super.help});
 
   @override
   String toString() {
@@ -126,17 +129,20 @@ class OptionElement extends ParameterElement {
 
   @override
   String toRecord() {
-    return "(name: ${name.quoted}, help: ${help?.quoted}, type: ${type.getDisplayString().quoted}, required: ${!optional})";
+    return "(name: ${name.quoted}, help: ${help?.quoted}, abbr: ${abbr?.quoted}, type: ${type.getDisplayString().quoted}, required: ${!optional})";
   }
 }
 
 class MultiOptionElement extends ParameterElement {
+  final String? abbr;
   final DartType type;
   final int? min;
 
+  bool get hasAbbr => abbr != null;
+
   bool get atLeastOne => min != null && min! >= 1;
 
-  MultiOptionElement({required super.name, required this.type, required this.min, required super.field, required super.annotation, required super.help});
+  MultiOptionElement({required super.name, required this.abbr, required this.type, required this.min, required super.field, required super.annotation, required super.help});
 
   @override
   String toString() {
@@ -145,7 +151,7 @@ class MultiOptionElement extends ParameterElement {
 
   @override
   String toRecord() {
-    return "(name: ${name.quoted}, help: ${help?.quoted}, type: ${type.getDisplayString().quoted}, min: $min)";
+    return "(name: ${name.quoted}, help: ${help?.quoted}, abbr: ${abbr?.quoted}, type: ${type.getDisplayString().quoted}, min: $min)";
   }
 }
 
@@ -251,7 +257,7 @@ class CommandGenerator extends GeneratorForSuperclass<Command> {
     final options = allFields(element).map((x) {
       final annotation = getAnnotation(x, [.option]);
       if (annotation == null) return null;
-      return OptionElement(name: validateName(getField(annotation, "name")!.toStringValue()!, .option), help: getField(annotation, "help")?.toStringValue(), type: x.type, field: x, annotation: annotation, optional: !x.isLate);
+      return OptionElement(name: validateName(getField(annotation, "name")!.toStringValue()!, .option), abbr: validateAbbr(getField(annotation, "abbr")?.toStringValue(), .option), help: getField(annotation, "help")?.toStringValue(), type: x.type, field: x, annotation: annotation, optional: !x.isLate);
     }).whereType<OptionElement>();
 
     final multiOptions = allFields(element).map((x) {
@@ -263,7 +269,7 @@ class CommandGenerator extends GeneratorForSuperclass<Command> {
         throw InvalidGenerationSourceError("Multi-option $name needs to be of type List.");
       }
 
-      return MultiOptionElement(name: name, help: getField(annotation, "help")?.toStringValue(), type: (x.type as InterfaceType).typeArguments.first, field: x, annotation: annotation, min: getField(annotation, "min")?.toIntValue());
+      return MultiOptionElement(name: name, abbr: validateAbbr(getField(annotation, "abbr")?.toStringValue(), .multiOption), help: getField(annotation, "help")?.toStringValue(), type: (x.type as InterfaceType).typeArguments.first, field: x, annotation: annotation, min: getField(annotation, "min")?.toIntValue());
     }).whereType<MultiOptionElement>();
 
     for (final subcommand in subcommands) {
@@ -294,8 +300,10 @@ class CommandGenerator extends GeneratorForSuperclass<Command> {
       return input == "({})" ? "()" : input;
     }
 
-    String allBlank(String name, String type, Iterable<ParameterElement> elements) {
+    String allBlank(String pretty, String name, String type, Iterable<ParameterElement> elements) {
       return """
+/// All $pretty as a list of [$type],
+/// ordered from first provided to last provided.
 List<$type> get all$name {
   return [${elements.map((x) {
     return x.toRecord();
@@ -303,8 +311,10 @@ List<$type> get all$name {
 }""".trim();
     }
 
-    String allBlankRecords(String name, String type, Iterable<ParameterElement> elements) {
+    String allBlankRecords(String pretty, String name, String type, Iterable<ParameterElement> elements) {
       return """
+/// All $pretty as a type-safe record,
+/// in a similar structure to TypeScript's interfaces.
 ${ifEmptyRecord("({${elements.map((x) => "$type ${x.field.name}").join(", ")}})")} get $name {
   return (${elements.map((x) => "${x.field.name}: ${x.toRecord()}").join(", ")});
 }""".trim();
@@ -318,33 +328,36 @@ bool runCommands(List<String> arguments) {
 """ : ""}
 
 extension ${element.name}Help on ${element.name} {
+  /// The default usage builder for this command.
   UsageBuilder defaultUsageBuilder() {
     return UsageBuilder()${flags.map((x) => "..addFlag(flags.${x.field.name})").join("")}${options.map((x) => "..addOption(options.${x.field.name})").join("")}${multiOptions.map((x) => "..addMultiOption(multiOptions.${x.field.name})").join("")}${arguments.map((x) => "..addArgument(arguments.${x.field.name})").join("")}..addCustom(settings.restUsageName != null ? "...\${settings.restUsageName}" : null);
   }
 
+  /// Builds the usage from either the provided builder or the default builder,
+  /// then stringifies it.
   String get usage {
-    return (buildUsage() ?? defaultUsageBuilder()).toString();
+    return (buildUsage() ?? defaultUsageBuilder()).build();
   }
 
-  ${allBlank("Arguments", "ArgumentData", arguments)}
+  ${allBlank("arguments", "Arguments", "ArgumentData", arguments)}
 
-  ${allBlank("Flags", "FlagData", flags)}
+  ${allBlank("Flags", "flags", "FlagData", flags)}
 
-  ${allBlank("Options", "OptionData", options)}
+  ${allBlank("options", "Options", "OptionData", options)}
 
-  ${allBlank("MultiOptions", "MultiOptionData", multiOptions)}
+  ${allBlank("multi-options", "MultiOptions", "MultiOptionData", multiOptions)}
 
-  ${allBlank("Subcommands", "SubcommandData", subcommands)}
+  ${allBlank("subcommands", "Subcommands", "SubcommandData", subcommands)}
 
-  ${allBlankRecords("arguments", "ArgumentData", arguments)}
+  ${allBlankRecords("arguments", "arguments", "ArgumentData", arguments)}
 
-  ${allBlankRecords("flags", "FlagData", flags)}
+  ${allBlankRecords("flags", "flags", "FlagData", flags)}
 
-  ${allBlankRecords("options", "OptionData", options)}
+  ${allBlankRecords("options", "options", "OptionData", options)}
 
-  ${allBlankRecords("multiOptions", "MultiOptionData", multiOptions)}
+  ${allBlankRecords("multi-options", "multiOptions", "MultiOptionData", multiOptions)}
 
-  ${allBlankRecords("subcommands", "SubcommandData", subcommands)}
+  ${allBlankRecords("subcommands", "subcommands", "SubcommandData", subcommands)}
 }
 
 final class ${element.internalName} {
@@ -367,7 +380,7 @@ final class ${element.internalName} {
       if (e.message != null) print(e.message);
       print("Usage: \${e.usage}");
       print("");
-      print(e.object.buildHelp());
+      print(e.object.buildHelp().build());
 
       return false;
     }
@@ -386,7 +399,10 @@ final class ${element.internalName} {
 
     for (final converter in object.converters) {
       if (converter is! EnumConverter) continue;
-      if (converter.type == Enum) throw Exception("You must specify a type for EnumConverter. Trust me, I learned this the hard way.");
+
+      if (converter.type == Enum) {
+        throw Exception("You must specify a type for EnumConverter. Trust me, I learned this the hard way.");
+      }
     }
 
     if (arguments.contains("-h") || arguments.contains("--help")) {
@@ -438,14 +454,19 @@ final class ${element.internalName} {
                 throw ParseException("Expected value for option '${element.name}'.", object, object.usage);
               }
 
-              final value = converter.convert(iterator.current);
+              try {
+                final value = converter.convert(iterator.current);
 
-              if (value == null) {
-                throw ParseException.fromConversionError(converter.typePretty ?? "${element.type.getDisplayString(withNullability: false)}", arg, converter.help(), object, object.usage);
+                if (value == null) {
+                  throw ParseException.fromConversionError(converter.typePretty ?? "${element.type.getDisplayString(withNullability: false)}", arg, converter.help(), object, object.usage);
+                }
+
+                object.${element.field.name} = value;
+                setOptions.add("${element.name}");
+              } catch (e) {
+                throw ParseException("An unexpected error happened while parsing argument '${element.name}':\\n\$e\\nParsing: '\$arg' to ${element.type.getDisplayString(withNullability: false)}\\nIf you are a developer, please change your converter to catch its own exceptions.", object, object.usage);
               }
 
-              object.${element.field.name} = value;
-              setOptions.add("${element.name}");
               break;
             """.trim();
           }).join("\n")}
@@ -480,6 +501,59 @@ final class ${element.internalName} {
           case 'h': throw ParseException(null, object, object.usage);
           ${flags.where((x) => x.hasAbbr).map((element) {
             return "case '${element.abbr}': object.${element.field.name} = !object.${element.field.name}; break;";
+          }).join("\n")}
+          ${options.where((x) => x.hasAbbr).map((element) {
+            return """case '${element.abbr}':
+              // Converts strings into the preferred type
+              final converter = object.getConverter(${element.type.getDisplayString(withNullability: false)});
+
+              if (converter == null) {
+                throw ConverterNotFoundError("Converter not found for option ${element.name} and type ${element.type.getDisplayString(withNullability: false)}.");
+              }
+
+              if (!iterator.moveNext()) {
+                throw ParseException("Expected value for option '${element.name}'.", object, object.usage);
+              }
+
+              try {
+                final value = converter.convert(iterator.current);
+
+                if (value == null) {
+                  throw ParseException.fromConversionError(converter.typePretty ?? "${element.type.getDisplayString(withNullability: false)}", arg, converter.help(), object, object.usage);
+                }
+
+                object.${element.field.name} = value;
+                setOptions.add("${element.name}");
+              } catch (e) {
+                throw ParseException("An unexpected error happened while parsing argument '${element.name}':\\n\$e\\nParsing: '\$arg' to ${element.type.getDisplayString(withNullability: false)}\\nIf you are a developer, please change your converter to catch its own exceptions.", object, object.usage);
+              }
+
+              break;
+            """.trim();
+          }).join("\n")}
+          ${multiOptions.where((x) => x.hasAbbr).map((element) {
+            return """case '${element.abbr}':
+              // Converts strings into the preferred type
+              final converter = object.getConverter(${element.type.getDisplayString(withNullability: false)});
+
+              if (converter == null) {
+                throw ConverterNotFoundError("Converter not found for multi-option ${element.name} and type List<${element.type.getDisplayString(withNullability: false)}>.");
+              }
+
+              if (!iterator.moveNext()) {
+                throw ParseException("Expected value for option '${element.name}'.", object, object.usage);
+              }
+
+              final value = converter.convert(iterator.current);
+
+              if (value == null) {
+                throw ParseException.fromConversionError(converter.typePretty ?? "${element.type.getDisplayString(withNullability: false)}", arg, converter.help(), object, object.usage);
+              }
+
+              object.${element.field.name}.add(value);
+              setMultiOptions["${element.name}"] = (setMultiOptions["${element.name}"] ?? 0) + 1;
+              break;
+            """.trim();
           }).join("\n")}
           default: throw ParseException("Invalid flag/option: \$arg", object, object.usage);
         }

@@ -6,7 +6,7 @@ targets:
 
 builders:
   commands:
-    import: "package:commands/builders.dart"
+    import: "package:commands/src/builder.dart"
     builder_factories:
       - commandBuilder
     build_extensions:

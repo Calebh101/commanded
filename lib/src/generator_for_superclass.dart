@@ -1,3 +1,5 @@
+// ignore_for_file: public_member_api_docs
+
 import 'dart:async';
 
 import 'package:source_gen/source_gen.dart';
@@ -5,51 +7,35 @@ import 'package:source_gen/src/output_helpers.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:build/build.dart';
 
-/// Extend this type to create a [Generator] that invokes
-/// [generateForAnnotatedElement] for every top level element in the source file
-/// annotated with [T].
-///
-/// When all annotated elements have been processed, the results will be
-/// combined into a single output with duplicate items collapsed.
-///
-/// For example, this will allow code generated for all top level elements which
-/// are annotated with `@Deprecated`:
+/// Just [GeneratorForAnnotation], but looking at `extends <Class>`.<br>
+/// E.G. If `T` is `MyClass`, then the following will happen:
 ///
 /// ```dart
-/// class DeprecatedGenerator extends GeneratorForAnnotation<Deprecated> {
-///   @override
-///   Future<String> generateForAnnotatedElement(
-///       Element element,
-///       ConstantReader annotation,
-///       BuildStep buildStep) async {
-///     // Return a string representing the code to emit.
-///   }
+/// class MyOtherClass extends MyClass {
+///   // generateForClass is called.
+/// }
+///
+/// abstract class MyBigClass extends MyClass {
+///   // generateForClass is called.
+/// }
+///
+/// class AnotherClass extends MyBigClass {
+///   // generateForClass is called, because MyBigClass extends MyClass.
+/// }
+///
+/// class NormalClass {
+///   // generateForClass is not called.
+/// }
+///
+/// class NormalClass extends ASuperClass {
+///   // generateForClass is not called.
 /// }
 /// ```
-///
-/// Elements which are not at the top level, such as the members of a class or
-/// extension, are not searched for annotations. To operate on, for instance,
-/// annotated fields of a class ensure that the class itself is annotated with
-/// [T] and use the `Element2` to iterate over fields. The [TypeChecker] utility
-/// may be helpful to check which elements have a given annotation.
 abstract class GeneratorForSuperclass<T> extends Generator {
   final bool throwOnUnresolved;
-
-  /// Annotation package for [TypeChecker.typeNamed].
   final String? inPackage;
-
-  /// Annotation package type for [TypeChecker.typeNamed].
   final bool? inSdk;
 
-  /// By default, this generator will throw if it encounters unresolved
-  /// annotations. You can override this by setting [throwOnUnresolved] to
-  /// `false`.
-  ///
-  /// [TypeChecker.typeNamed] on `T` is used to match the annotation. By default
-  /// it matches any annotation with the same name. Pass [inPackage] and [inSdk]
-  /// to tighten the check; see [TypeChecker.typeNamed] for details.
-  ///
-  /// To use a custom annotation check, override [typeChecker].
   const GeneratorForSuperclass({
     this.throwOnUnresolved = true,
     this.inPackage,
@@ -88,23 +74,6 @@ abstract class GeneratorForSuperclass<T> extends Generator {
     return values.join('\n\n');
   }
 
-  /// Implement to return source code to generate for [element].
-  ///
-  /// This method is invoked based on finding elements annotated with an
-  /// instance of [T]. The [annotation] is provided as a [ConstantReader].
-  ///
-  /// Supported return values include a single [String] or multiple [String]
-  /// instances within an [Iterable] or [Stream]. It is also valid to return a
-  /// [Future] of [String], [Iterable], or [Stream]. When multiple values are
-  /// returned through an iterable or stream they will be deduplicated.
-  /// Typically each value will be an independent unit of code and the
-  /// deduplication prevents re-defining the same member multiple times. For
-  /// example if multiple annotated elements may need a specific utility method
-  /// available it can be output for each one, and the single deduplicated
-  /// definition can be shared.
-  ///
-  /// Implementations should return `null` when no content is generated. Empty
-  /// or whitespace-only [String] instances are also ignored.
   dynamic generateForClass(
     ClassElement element,
     BuildStep buildStep,

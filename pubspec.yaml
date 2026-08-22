@@ -1,6 +1,6 @@
 name: commands
 description: A package to make parsing CLI arguments easier and safer.
-version: 1.0.0
+version: 0.0.0
 repository: https://github.com/Calebh101/commands
 
 environment:

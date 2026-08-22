@@ -4,31 +4,125 @@ import 'package:commands/src/types.dart';
 import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
 
-class CommandSettings {
+/// Various settings for commands.
+/// These can be changed without needing to rerun Build Runner.
+final class CommandSettings {
+  /// Only allow subcommands in this command.
+  ///
+  /// If the command is run without a subcommand,
+  /// an error will be thrown and caught and help will be shown.
   final bool subcommandsOnly;
+
+  /// If this is true, then the `rest` field will be populated on extra positional arguments.
+  ///
+  /// If this is false, an error is thrown if there are too many arguments.
   final bool allowRest;
+
+  /// Take this example:
+  ///
+  /// ```
+  /// mycommand --my-flag positionalArgument --my-other-flag
+  /// ```
+  ///
+  /// If this is true, then both `--my-flag` and `--my-other-flag` will be processed as a flag.
+  ///
+  /// If this is false, then `--my-flag` will be processed as a flag, but `--my-other-flag` will be processed as a positional argument.
   final bool allowTrailingOptions;
+
+  /// This only applies to the auto-generated usage builder.
+  ///
+  /// If this is `text`, then this will be shown in the usage:<br>
+  /// `Usage: mycommand [--my-flag] ...text`
+  ///
+  /// If this is null, then `...text` would not be there.
   final String? restUsageName;
 
+  /// Various settings for commands.
+  /// These can be changed without needing to rerun Build Runner.
   const CommandSettings({this.subcommandsOnly = false, this.allowRest = false, this.allowTrailingOptions = true, this.restUsageName});
 }
 
+/// Abstract class for defining a command.
+///
+/// No annotation is needed here;
+/// the generator automatically looks for classes that extend [Command] or a different class that extends [Command].
 abstract class Command {
+  /// Abstract class for defining a command.
+  ///
+  /// No annotation is needed here;
+  /// the generator automatically looks for classes that extend [Command] or a different class that extends [Command].
+  new();
+
+  /// The name of this command, for usage.
   String get name;
+
+  /// Settings for this command.
+  /// This defaults to a default [CommandSettings] object.
   CommandSettings get settings => .new();
+
+  /// Converters for this command.
+  /// For more info, see the readme for this package.
+  ///
+  /// Calling super is not required, and does nothing.
   List<Converter> get converters => [];
 
+  /// The rest of the arguments provided after all the positional arguments have been set.
   @nonVirtual
   late List<String> rest;
 
-  void onRun();
-
+  /// Use this to validate command input.
+  ///
+  /// Return a dev-friendly error message if there's an error;
+  /// otherwise, return null.
+  ///
+  /// Help will automatically be shown if a message is returned.
+  ///
+  /// Calling super is not required, and does nothing.
   String? validate() => null;
 
+  /// This is ran once the arguments are parsed and ready to be used.
+  void onRun();
+
+  /// Build the help block that's shown to the user.
+  ///
+  /// You can customize this as much as you want; it is up to you.
+  ///
+  /// ### Referencing options, flags, and more:
+  ///
+  /// Use `flags` for flags, `options` for options, `multiOptions` for multi-options, `arguments` for arguments, and `subcommands` for subcommands.
+  ///
+  /// These provide type-safe records that reference each of your defined parameters.
+  ///
+  /// There's also `all<type>`, where type is something such as `Options`, which provide lists.
+  ///
+  /// ---
+  ///
+  /// See [HelpBuilder] documentation for more information.
   HelpBuilder buildHelp();
 
+  /// Build the usage line that's shown to the user.
+  ///
+  /// You can customize this as much as you want; it is up to you.
+  /// However, it must stay as 1 line.
+  ///
+  /// ### Referencing options, flags, and more:
+  ///
+  /// Use `flags` for flags, `options` for options, `multiOptions` for multi-options, `arguments` for arguments, and `subcommands` for subcommands.
+  ///
+  /// These provide type-safe records that reference each of your defined parameters.
+  ///
+  /// There's also `all<type>`, where type is something such as `Options`, which provide lists.
+  ///
+  /// ---
+  ///
+  /// Calling super is not required, and does nothing.
+  ///
+  /// See [UsageBuilder] documentation for more info.
   UsageBuilder? buildUsage() => null;
 
+  /// Tries to get a converter from [converters].
+  ///
+  /// Types must match exactly.
   @nonVirtual
   Converter? getConverter(Type type) {
     for (final c in converters) {
@@ -39,117 +133,60 @@ abstract class Command {
   }
 }
 
+/// Abstract class for converters.
+///
+/// A converter is a very simple object that takes in a string and converts it into an output object.
+///
+/// For example, we could make a converter like so:
+///
+/// ```dart
+/// class DoubleConverter extends Converter<double> {
+///   @override
+///   convert(String input) {
+///     return double.tryParse(input);
+///   }
+/// }
+/// ```
+///
+/// When an argument expecting a double is inputted, the converter takes in the input, and tries to parse it into a double.
 abstract class Converter<T> {
+  /// Abstract class for converters.
+  ///
+  /// A converter is a very simple object that takes in a string and converts it into an output object.
+  ///
+  /// For example, we could make a converter like so:
+  ///
+  /// ```dart
+  /// class DoubleConverter extends Converter<double> {
+  ///   @override
+  ///   convert(String input) {
+  ///     return double.tryParse(input);
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// When an argument expecting a double is inputted, the converter takes in the input, and tries to parse it into a double.
+  new();
+
+  /// Take in the raw string input and try to convert it into a value.
+  ///
+  /// If the input is invalid, return null.
   T? convert(String input);
 
+  /// Generate a help message for when a value fails to convert.
+  ///
+  /// Use this to put supported values or tips.
   String? help() => null;
 
+  /// A pretty name for the type this converter represents.
+  /// The user will see this.
+  ///
+  /// Defaults to a string representation of [T].
   String? get typePretty => null;
 
+  /// The type this converter represents.
   @nonVirtual
   Type get type => T;
-}
-
-final class HelpBuilder {
-  final List<_Item> _items = [];
-
-  void addArgument(ArgumentData data) {
-    _items.add(.new(.arg, data.name, data.help));
-  }
-
-  void addFlag(FlagData data) {
-    _items.add(.new(.flag, data.name, data.help));
-  }
-
-  void addOption(OptionData data) {
-    _items.add(.new(.option, data.name, data.help));
-  }
-
-  void addMultiOption(MultiOptionData data) {
-    _items.add(.new(.multiOption, data.name, data.help));
-  }
-
-  void addSubcommand(SubcommandData data) {
-    _items.add(.new(.subcommand, data.name, data.help));
-  }
-
-  void addSeparator() {
-    _items.add(.new(.separator, null, null));
-  }
-
-  void addCustom([String? left, String? right]) {
-    _items.add(.new(.custom, left, right));
-  }
-
-  @override
-  String toString() {
-    final maxLeft = _items.map((x) => x.getLeft().length).max;
-    return _items.map((x) => x.pretty(max(20, maxLeft))).join("\n");
-  }
-}
-
-enum _Type {
-  arg,
-  flag,
-  option,
-  multiOption,
-  subcommand,
-  separator,
-  custom,
-  ;
-}
-
-class _Item {
-  final _Type type;
-  final String? left;
-  final String? right;
-
-  _Item(this.type, this.left, this.right);
-
-  String getLeft() {
-    return left == null ? "" : switch (type) {
-      .arg => left,
-      .flag => "--$left",
-      .multiOption => "--$left <value>",
-      .option => "--$left <value>",
-      .subcommand => left,
-      .separator => "",
-      .custom => left,
-    } ?? "";
-  }
-
-  String pretty(int padding) {
-    return "${getLeft().padRight(padding)}  ${right ?? ""}";
-  }
-}
-
-class UsageBuilder {
-  final List<String> _items = [];
-
-  void addArgument(ArgumentData data) {
-    _items.add(data.name.bracketsIf(!data.required));
-  }
-
-  void addFlag(FlagData data) {
-    _items.add(["--${data.name}", if (data.abbr != null) "-${data.abbr}"].join("/").brackets);
-  }
-
-  void addOption(OptionData data) {
-    _items.add(["--${data.name} <${data.name}>"].join("/").bracketsIf(!data.required));
-  }
-
-  void addMultiOption(MultiOptionData data) {
-    _items.add(["--${data.name} <${data.name}>"].join("/").bracketsIf((data.min ?? 0) < 1));
-  }
-
-  void addCustom(String? value) {
-    if (value != null) _items.add(value);
-  }
-
-  @override
-  String toString([String separator = " "]) {
-    return _items.join(separator);
-  }
 }
 
 extension on String {
@@ -159,5 +196,197 @@ extension on String {
 
   String bracketsIf(bool condition) {
     return condition ? brackets : this;
+  }
+}
+
+final class _Item {
+  final String? left;
+  final String? right;
+
+  _Item(this.left, this.right);
+
+  String pretty(int padding) {
+    return "${(left ?? "").padRight(padding)}  ${right ?? ""}";
+  }
+}
+
+/// Class representing helpers.
+abstract class Helper {
+  /// Class representing helpers.
+  new();
+
+  /// Build the current state of the object into an output string.
+  ///
+  /// This should not modify state.
+  String build();
+}
+
+/// Helper class for building help messages.
+///
+/// This builder collects a list of items and renders them from top to bottom,
+/// with 2 columns: one for the names of the items, and the other for help messages.
+class HelpBuilder extends Helper {
+  /// Helper class for building help messages.
+  ///
+  /// This builder collects a list of items and renders them from top to bottom,
+  /// with 2 columns: one for the names of the items, and the other for help messages.
+  new();
+
+  // Stateful
+  final List<_Item> _items = [];
+
+  /// Add an argument from an [ArgumentData] to the list of items.
+  ///
+  /// Arguments will be represented as their name, with brackets around it if the argument is optional, like so:
+  ///
+  /// ```
+  /// my-required-argument
+  /// [my-optional-argument]
+  /// ```
+  void addArgument(ArgumentData data) {
+    _items.add(.new(data.name.bracketsIf(!data.required), data.help));
+  }
+
+  /// Add a flag from a [FlagData] to the list of items.
+  ///
+  /// Flags will be represented as 2 dashes before their name, with an optional abbreviation, with brackets around them, like so:
+  ///
+  /// ```
+  /// [--my-flag/-f]
+  /// ```
+  void addFlag(FlagData data) {
+    _items.add(.new(["--${data.name}", if (data.abbr != null) "-${data.abbr}"].join("/").brackets, data.help));
+  }
+
+  /// Add an option from an [OptionData] to the list of items.
+  ///
+  /// Options will be represented like so:
+  ///
+  /// ```
+  /// --my-required-option <my-required-option>
+  /// [--my-optional-option <my-optional-option>]
+  /// ```
+  void addOption(OptionData data) {
+    _items.add(.new(["--${data.name} <${data.name}>"].join("/").bracketsIf(!data.required), data.help));
+  }
+
+  /// Add a multi-option item from a [MultiOptionData] to the list of items.
+  ///
+  /// Multi-options will be represented like so:
+  ///
+  /// ```
+  /// --my-required-option <my-required-option>
+  /// [--my-optional-option <my-optional-option>]
+  /// ```
+  ///
+  /// The option is required if its `min` value is 1 or more.
+  void addMultiOption(MultiOptionData data) {
+    _items.add(.new(["--${data.name} <${data.name}>"].join("/").bracketsIf((data.min ?? 0) < 1), data.help));
+  }
+
+  /// Add a subcommand from a [SubcommandData] to the list of items.
+  ///
+  /// Subcommands will simply be represented as their name.
+  void addSubcommand(SubcommandData data) {
+    _items.add(.new(data.name, data.help));
+  }
+
+  /// Add a blank line to the list of items.
+  void addSeparator() {
+    _items.add(.new(null, null));
+  }
+
+  /// Add a custom line to the list of items.
+  ///
+  /// [left] is the text shown in the left column, and
+  /// [right] is the text shown in the right column.
+  ///
+  /// `null` = blank.
+  void addCustom([String? left, String? right]) {
+    _items.add(.new(left, right));
+  }
+
+  @override
+  String build() {
+    final maxLeft = _items.map((x) => x.left?.length ?? 0).max;
+    return _items.map((x) => x.pretty(max(20, maxLeft))).join("\n");
+  }
+}
+
+/// Helper class for building help messages.
+///
+/// This builder collects a list of items and renders them from left to right,
+/// joining them by a space.
+class UsageBuilder extends Helper {
+  /// Helper class for building help messages.
+  ///
+  /// This builder collects a list of items and renders them from left to right,
+  /// joining them by a space.
+  new();
+
+  // Stateful
+  final List<String> _items = [];
+
+  /// Add an argument from an [ArgumentData] to the list of items.
+  ///
+  /// Arguments will be represented as their name, with brackets around it if the argument is optional, like so:
+  ///
+  /// ```
+  /// my-required-argument
+  /// [my-optional-argument]
+  /// ```
+  void addArgument(ArgumentData data) {
+    _items.add(data.name.bracketsIf(!data.required));
+  }
+
+  /// Add a flag from a [FlagData] to the list of items.
+  ///
+  /// Flags will be represented as 2 dashes before their name, with an optional abbreviation, with brackets around them, like so:
+  ///
+  /// ```
+  /// [--my-flag/-f]
+  /// ```
+  void addFlag(FlagData data) {
+    _items.add(["--${data.name}", if (data.abbr != null) "-${data.abbr}"].join("/").brackets);
+  }
+
+  /// Add an option from an [OptionData] to the list of items.
+  ///
+  /// Options will be represented like so:
+  ///
+  /// ```
+  /// --my-required-option <my-required-option>
+  /// [--my-optional-option <my-optional-option>]
+  /// ```
+  void addOption(OptionData data) {
+    _items.add(["--${data.name} <${data.name}>"].join("/").bracketsIf(!data.required));
+  }
+
+  /// Add a multi-option item from a [MultiOptionData] to the list of items.
+  ///
+  /// Multi-options will be represented like so:
+  ///
+  /// ```
+  /// --my-required-option <my-required-option>
+  /// [--my-optional-option <my-optional-option>]
+  /// ```
+  ///
+  /// The option is required if its `min` value is 1 or more.
+  void addMultiOption(MultiOptionData data) {
+    _items.add(["--${data.name} <${data.name}>"].join("/").bracketsIf((data.min ?? 0) < 1));
+  }
+
+  /// Add a custom string into the items.
+  ///
+  /// This will still be joined by spaces, so you don't need to add a space before or after your string.
+  ///
+  /// If nothing is provided, nothing is added.
+  void addCustom(String? value) {
+    if (value != null) _items.add(value);
+  }
+
+  @override
+  String build([String separator = " "]) {
+    return _items.join(separator);
   }
 }

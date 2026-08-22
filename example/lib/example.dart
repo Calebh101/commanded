@@ -13,6 +13,7 @@ part 'example.g.dart';
 // - Generate a random number from 0 and 100, inclusive.
 // - Have optional --min and --max options for tuning the range.
 // - Have an optional --secure flag for making the RNG use Random.secure. For a bonus, we'll also let this have a -s abbreviation!
+// - Have an avoid list too, so the user can select specific numbers to avoid choosing. We'll also give this an abbreviation of -a!
 // - We'll also have a --timed flag for debugging.
 //
 //
@@ -22,12 +23,16 @@ part 'example.g.dart';
 // - Repeat said text over and over.
 // - Capitalize the text, or make it lowercase.
 // Yes, this is basic, but we're gonna use this to show off positional arguments, negatable flags, and more.
+//
+//
+// Our next little thing: **PrintMyArguments**
+// This is a very basic command to demonstrate positional arguments.
 
 // First, we're gonna set up a base command class. This gives us global options.
 // For now, we'll just have --verbose.
 // This allows of this class to be inherited by command classes that extends BaseCommand!
 abstract class BaseCommand extends Command {
-  @Flag("verbose", abbr: "v", help: "Enable verbose mode.")
+  @Flag("verbose", abbr: "v", help: "Enable verbose mode. This gives you extra logs.")
   bool verbose = false;
 }
 
@@ -51,8 +56,13 @@ class ParentCommand extends Command {
   @Subcommand("random", help: "Generate a random number.")
   late RandomNumberCommand randomNumberCommand;
 
+  // Define another subcommand.
   @Subcommand("echo", help: "Echo some text.")
   late EchoCommand echoCommand;
+
+  // Define yet another subcommand...
+  @Subcommand("args", help: "Do some positional argument stuff!")
+  late PrintMyPositionalArgumentsCommand printMyPositionalArgumentsCommand;
 
   // Build the usage line that shows up when --help is called.
   // This is very customizable, to fit whatever style you prefer!
@@ -110,6 +120,13 @@ class RandomNumberCommand extends BaseCommand {
   @Flag("timed", abbr: "t", help: "Whether to time how long it takes to generate the number. Defaults to false.")
   bool timed = false;
 
+  // Whoa, a multi-option?
+  // This is basically an Option, but it can be provided multiple times, or none at all, to build a list of inputs.
+  // Every time someone adds --avoid <number>, this list is added to.
+  // There's an option min parameter for the annotation as well, but we don't need that.
+  @MultiOption("avoid", abbr: "a", help: "Numbers to avoid choosing.")
+  List<int> avoids = [];
+
   // This is a validator.
   // This kinda works like Flutter's text field validator, if you've ever used that.
   // If you return a string, the user will see your message, along with usage and help.
@@ -127,12 +144,19 @@ class RandomNumberCommand extends BaseCommand {
     final Random random = (secure ? .secure() : .new());
     final stopwatch = Stopwatch()..start();
 
-    final result = random.nextInt((max - min) + 1) + min;
-    stopwatch.stop();
+    bool avoided = false;
+    int? value;
 
-    print(result);
-    if (timed) print("Time: ${stopwatch.elapsedMicroseconds}us");
-    if (verbose) print("Generated number! (secure: $secure)"); // We're using verbose, from BaseCommand!
+    while (value == null || avoids.contains(value)) {
+      if (value != null) avoided = true;
+      value = random.nextInt((max - min) + 1) + min;
+    }
+
+    stopwatch.stop();
+    print(value);
+
+    if (timed) print("Time: ${avoided ? "<invalid due to value avoided>" : stopwatch.elapsedMicroseconds}us");
+    if (verbose) print("Generated number! (secure: $secure, avoided: ${avoids.join(", ")})"); // We're using verbose, from BaseCommand!
   }
 
   // Build our help, but this time with options instead of subcommands.
@@ -170,7 +194,7 @@ class EchoCommand extends BaseCommand {
   ];
 
   // An option.
-  @Option("repeat", help: "How many times to repeat the text. Defaults to 1.")
+  @Option("repeat", abbr: "r", help: "How many times to repeat the text. Defaults to 1.")
   int repeat = 1;
 
   // We've seen binary flags, but this here is one of em negatable flags.
@@ -237,6 +261,60 @@ class EchoCommand extends BaseCommand {
     // A bit anticlimactic, huh
     print(text * repeat);
   }
+}
+
+// A very basic command to demonstrate positional arguments.
+class PrintMyPositionalArgumentsCommand extends BaseCommand {
+  @override
+  String get name => "args";
+
+  // We have to define converters for everything, even stuff you'd think is built-in!
+  // (Hint: nothing is built-in.)
+  // For more info, see the readme.
+  @override
+  List<Converter<dynamic>> get converters => [
+    StringConverter(),
+    IntConverter(),
+    BoolConverter(),
+  ];
+
+  // Required.
+  @Argument("arg1", help: "An argument!")
+  late String arg1;
+
+  // Required.
+  @Argument("arg2", help: "An argument?")
+  late int arg2;
+
+  // Not required.
+  @Argument("arg3", help: "An argument...")
+  bool? arg3;
+
+  @override
+  HelpBuilder buildHelp() {
+    return .new()
+      ..addArgument(arguments.arg1)
+      ..addArgument(arguments.arg2)
+      ..addArgument(arguments.arg3)
+      ;
+  }
+
+  @override
+  void onRun() {
+    print("arg1: $arg1 (${arg1.runtimeType})");
+    print("arg2: $arg2 (${arg2.runtimeType})");
+    print("arg3: $arg3 (${arg3.runtimeType})");
+  }
+
+  // Because we defined arg1, arg2, and arg3 in that order, that's the order positional arguments will be parsed as.
+  // If you run this:
+  //   dart run example args test 32 true
+  // You'll see arg1, arg2, and arg3 printed in that order.
+  //
+  // If you run:
+  //   dart run example args true test 32
+  // You'll see an error message, saying that you entered something invalid.
+  // Now, try rearranging these arguments, and see what happens!
 }
 
 // Since we put @MainCommand() above our... main command, we get this special function called runCommands.

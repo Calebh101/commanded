@@ -36,7 +36,7 @@ class Option extends Parameter {
   /// Order does not matter for these types of parameters.
   ///
   /// If this value is late, the option will be treated as required.
-  const Option(super.name, {super.help});
+  const Option(super.name, {super.abbr, super.help});
 }
 
 /// Defines a multi-option in this format:<br>
@@ -61,7 +61,7 @@ class MultiOption extends Parameter {
   ///
   /// Order does not matter for these types of parameters;
   /// however, the first provided will be first in the list of values.
-  const MultiOption(super.name, {super.help, this.min});
+  const MultiOption(super.name, {super.abbr, super.help, this.min});
 }
 
 /// Defines a positional argument.
@@ -70,7 +70,17 @@ class MultiOption extends Parameter {
 /// For example, if you ran this command:<br>
 /// `mycommand arg1 arg2`<br>
 /// Your positional arguments would be `arg1` and `arg2`.
+///
+/// Please note that positional argument definitions depend on the order you define them in your class, from top to bottom.
 class Argument extends Parameter {
+  /// Defines a positional argument.
+  /// This is an argument that depends on position, instead of a named option/flag.
+  ///
+  /// For example, if you ran this command:<br>
+  /// `mycommand arg1 arg2`<br>
+  /// Your positional arguments would be `arg1` and `arg2`.
+  ///
+  /// Please note that positional argument definitions depend on the order you define them in your class, from top to bottom.
   const Argument(super.name, {super.help});
 }
 

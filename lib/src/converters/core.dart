@@ -7,6 +7,11 @@ import 'package:collection/collection.dart';
 ///
 /// Accepts `y`, `yes`, `true`, or numbers.
 class BoolConverter extends Converter<bool> {
+  /// Converts into `bool`.
+  ///
+  /// Accepts `y`, `yes`, `true`, or numbers.
+  new();
+
   @override
   convert(String input) {
     final value = input.trim().toLowerCase();
@@ -26,6 +31,9 @@ class BoolConverter extends Converter<bool> {
 
 /// Converts into `Double` using `tryParse`.
 class DoubleConverter extends Converter<double> {
+  /// Converts into `Double` using `tryParse`.
+  new();
+
   @override
   convert(String input) {
     return .tryParse(input);
@@ -73,6 +81,9 @@ class EnumConverter<T extends Enum> extends Converter<T> {
 
 /// Converts into `int` using `tryParse`.
 class IntConverter extends Converter<int> {
+  /// Converts into `int` using `tryParse`.
+  new();
+
   @override
   convert(String input) {
     return .tryParse(input);
@@ -81,6 +92,9 @@ class IntConverter extends Converter<int> {
 
 /// Converts the input into `Object` using `jsonDecode` from `dart:convert`.
 class JsonConverter extends Converter<Object> {
+  /// Converts the input into `Object` using `jsonDecode` from `dart:convert`.
+  new();
+
   @override
   convert(String input) {
     try {
@@ -93,6 +107,9 @@ class JsonConverter extends Converter<Object> {
 
 /// Converts into `Double` using `tryParse`.
 class NumConverter extends Converter<num> {
+  /// Converts into `Double` using `tryParse`.
+  new();
+
   @override
   convert(String input) {
     return .tryParse(input);
@@ -100,7 +117,12 @@ class NumConverter extends Converter<num> {
 }
 
 /// Returns what's put into it.
+/// Cannot return null.
 class StringConverter extends Converter<String> {
+  /// Returns what's put into it.
+  /// Cannot return null.
+  new();
+
   @override
   convert(String input) {
     return input;

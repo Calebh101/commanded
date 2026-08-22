@@ -7,10 +7,10 @@ typedef ArgumentData = ({String name, String? help, bool required});
 typedef FlagData = ({String name, String? help, String? abbr, bool negatable});
 
 /// Data for option definitions.
-typedef OptionData = ({String name, String? help, String type, bool required});
+typedef OptionData = ({String name, String? help, String? abbr, String type, bool required});
 
 /// Data for multi-option definitions.
-typedef MultiOptionData = ({String name, String? help, String type, int? min});
+typedef MultiOptionData = ({String name, String? help, String? abbr, String type, int? min});
 
 /// Data for subcommand definitions.
 typedef SubcommandData = ({String name, String? help});
