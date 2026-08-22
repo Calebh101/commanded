@@ -17,7 +17,7 @@ class BoolConverter extends Converter<bool> {
     final value = input.trim().toLowerCase();
     final number = num.tryParse(value);
 
-    if (number != null) return number > 0;
+    if (number == 0 || number == 1) return number == 1;
     if (value == "y" || value == "yes" || value == "true") return true;
     if (value == "n" || value == "no" || value == "false") return false;
     return null;

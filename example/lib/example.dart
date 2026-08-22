@@ -26,7 +26,7 @@ part 'example.g.dart';
 //
 //
 // Our next little thing: **PrintMyArguments**
-// This is a very basic command to demonstrate positional arguments.
+// This is a very basic command to demonstrate positional arguments. We'll also do enums too!
 
 // First, we're gonna set up a base command class. This gives us global options.
 // For now, we'll just have --verbose.
@@ -82,6 +82,7 @@ class ParentCommand extends Command {
     return .new()
       ..addSubcommand(subcommands.randomNumberCommand)
       ..addSubcommand(subcommands.echoCommand)
+      ..addSubcommand(subcommands.printMyPositionalArgumentsCommand)
       ;
   }
 
@@ -98,7 +99,10 @@ class RandomNumberCommand extends BaseCommand {
   String get name => "random";
 
   // Define converters for options, multi-options, and arguments.
-  // I won't explain this here, but for more info on this, please see the readme.
+  // I won't explain it all here, but for more info on this, please see the readme.
+  //
+  // Note: converters are required for all options, multi-options, and arguments.
+  // Yes, even strings. Nothing is built-in.
   @override
   List<Converter> get converters => [
     IntConverter(),

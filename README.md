@@ -69,3 +69,8 @@ There's also this `help` method. This returns a helpful tip that will be shown t
 You should make your converters stateless, as they may be reused.
 
 For more examples, see [converters/core.dart](lib/src/converters/core.dart).
+
+# Notes to remember
+
+- Inheritance is how you define global arguments; if a command defines a different command as a subcommand, then the subcommand won't automatically inherit the parent command's arguments.
+- Converters are required for everything but flags, and if not provided, will error at runtime. (Every time a command is run, the parser checks that each type has a converter.)

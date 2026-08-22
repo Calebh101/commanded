@@ -32,7 +32,7 @@ extension ParentCommandHelp on ParentCommand {
 
   /// All Flags as a list of [FlagData],
   /// ordered from first provided to last provided.
-  List<FlagData> get allflags {
+  List<FlagData> get allFlags {
     return [];
   }
 
@@ -138,10 +138,23 @@ final class ParentCommandData {
     }
 
     final object = ParentCommand();
+    final Set<Type> missingConverters = {};
 
     for (final converter in object.converters) {
       final result = converter.validate();
       if (result != null) throw ConverterValidationError(result);
+    }
+
+    for (final type in []) {
+      if (object.checkConverter(type) == false) {
+        missingConverters.add(type);
+      }
+    }
+
+    if (missingConverters.isNotEmpty) {
+      throw ConverterNotFoundError(
+        "Couldn't find converter(s) for types: ${missingConverters.join(", ")}",
+      );
     }
 
     if (arguments.contains("-h") || arguments.contains("--help")) {
@@ -317,7 +330,7 @@ extension RandomNumberCommandHelp on RandomNumberCommand {
 
   /// All Flags as a list of [FlagData],
   /// ordered from first provided to last provided.
-  List<FlagData> get allflags {
+  List<FlagData> get allFlags {
     return [
       (
         name: "secure",
@@ -483,10 +496,23 @@ final class RandomNumberCommandData {
     }
 
     final object = RandomNumberCommand();
+    final Set<Type> missingConverters = {};
 
     for (final converter in object.converters) {
       final result = converter.validate();
       if (result != null) throw ConverterValidationError(result);
+    }
+
+    for (final type in [int]) {
+      if (object.checkConverter(type) == false) {
+        missingConverters.add(type);
+      }
+    }
+
+    if (missingConverters.isNotEmpty) {
+      throw ConverterNotFoundError(
+        "Couldn't find converter(s) for types: ${missingConverters.join(", ")}",
+      );
     }
 
     if (arguments.contains("-h") || arguments.contains("--help")) {
@@ -568,8 +594,9 @@ final class RandomNumberCommandData {
               object.min = value;
               setOptions.add("min");
             } catch (e) {
+              if (e is ParseException) rethrow;
               throw ParseException(
-                "An unexpected error happened while parsing argument 'min':\n$e\nParsing: '$arg' to int\nIf you are a developer, please change your converter to catch its own exceptions.",
+                "An unexpected error happened while parsing option 'min':\n$e\nParsing: '$arg' to int\nIf you are a developer, please change your converter to catch its own exceptions.",
                 object,
                 object.usage,
               );
@@ -610,8 +637,9 @@ final class RandomNumberCommandData {
               object.max = value;
               setOptions.add("max");
             } catch (e) {
+              if (e is ParseException) rethrow;
               throw ParseException(
-                "An unexpected error happened while parsing argument 'max':\n$e\nParsing: '$arg' to int\nIf you are a developer, please change your converter to catch its own exceptions.",
+                "An unexpected error happened while parsing option 'max':\n$e\nParsing: '$arg' to int\nIf you are a developer, please change your converter to catch its own exceptions.",
                 object,
                 object.usage,
               );
@@ -624,7 +652,7 @@ final class RandomNumberCommandData {
 
             if (converter == null) {
               throw ConverterNotFoundError(
-                "Converter not found for multi-option avoid and type List<int>.",
+                "Converter not found for multi-option avoid and type int.",
               );
             }
 
@@ -636,20 +664,30 @@ final class RandomNumberCommandData {
               );
             }
 
-            final value = converter.convert(iterator.current);
+            try {
+              final value = converter.convert(iterator.current);
 
-            if (value == null) {
-              throw ParseException.fromConversionError(
-                converter.typePretty ?? "int",
-                arg,
-                converter.help(),
+              if (value == null) {
+                throw ParseException.fromConversionError(
+                  converter.typePretty ?? "int",
+                  arg,
+                  converter.help(),
+                  object,
+                  object.usage,
+                );
+              }
+
+              object.avoids.add(value);
+              setMultiOptions["avoid"] = (setMultiOptions["avoid"] ?? 0) + 1;
+            } catch (e) {
+              if (e is ParseException) rethrow;
+              throw ParseException(
+                "An unexpected error happened while parsing multi-option 'avoid':\n$e\nParsing: '$arg' to int\nIf you are a developer, please change your converter to catch its own exceptions.",
                 object,
                 object.usage,
               );
             }
 
-            object.avoids.add(value);
-            setMultiOptions["avoid"] = (setMultiOptions["avoid"] ?? 0) + 1;
             break;
           default:
             throw ParseException(
@@ -827,7 +865,7 @@ extension EchoCommandHelp on EchoCommand {
 
   /// All Flags as a list of [FlagData],
   /// ordered from first provided to last provided.
-  List<FlagData> get allflags {
+  List<FlagData> get allFlags {
     return [
       (
         name: "capitalize",
@@ -949,10 +987,23 @@ final class EchoCommandData {
     }
 
     final object = EchoCommand();
+    final Set<Type> missingConverters = {};
 
     for (final converter in object.converters) {
       final result = converter.validate();
       if (result != null) throw ConverterValidationError(result);
+    }
+
+    for (final type in [int]) {
+      if (object.checkConverter(type) == false) {
+        missingConverters.add(type);
+      }
+    }
+
+    if (missingConverters.isNotEmpty) {
+      throw ConverterNotFoundError(
+        "Couldn't find converter(s) for types: ${missingConverters.join(", ")}",
+      );
     }
 
     if (arguments.contains("-h") || arguments.contains("--help")) {
@@ -1033,8 +1084,9 @@ final class EchoCommandData {
               object.repeat = value;
               setOptions.add("repeat");
             } catch (e) {
+              if (e is ParseException) rethrow;
               throw ParseException(
-                "An unexpected error happened while parsing argument 'repeat':\n$e\nParsing: '$arg' to int\nIf you are a developer, please change your converter to catch its own exceptions.",
+                "An unexpected error happened while parsing option 'repeat':\n$e\nParsing: '$arg' to int\nIf you are a developer, please change your converter to catch its own exceptions.",
                 object,
                 object.usage,
               );
@@ -1090,6 +1142,7 @@ final class EchoCommandData {
               object.repeat = value;
               setOptions.add("repeat");
             } catch (e) {
+              if (e is ParseException) rethrow;
               throw ParseException(
                 "An unexpected error happened while parsing argument 'repeat':\n$e\nParsing: '$arg' to int\nIf you are a developer, please change your converter to catch its own exceptions.",
                 object,
@@ -1227,7 +1280,7 @@ extension PrintMyPositionalArgumentsCommandHelp
 
   /// All Flags as a list of [FlagData],
   /// ordered from first provided to last provided.
-  List<FlagData> get allflags {
+  List<FlagData> get allFlags {
     return [
       (
         name: "verbose",
@@ -1347,10 +1400,23 @@ final class PrintMyPositionalArgumentsCommandData {
     }
 
     final object = PrintMyPositionalArgumentsCommand();
+    final Set<Type> missingConverters = {};
 
     for (final converter in object.converters) {
       final result = converter.validate();
       if (result != null) throw ConverterValidationError(result);
+    }
+
+    for (final type in [String, int, MyEnum]) {
+      if (object.checkConverter(type) == false) {
+        missingConverters.add(type);
+      }
+    }
+
+    if (missingConverters.isNotEmpty) {
+      throw ConverterNotFoundError(
+        "Couldn't find converter(s) for types: ${missingConverters.join(", ")}",
+      );
     }
 
     if (arguments.contains("-h") || arguments.contains("--help")) {

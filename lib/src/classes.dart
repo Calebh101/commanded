@@ -131,6 +131,18 @@ abstract class Command {
 
     return null;
   }
+
+  /// Tries to find a converter from [converters].
+  ///
+  /// Types must match exactly.
+  @nonVirtual
+  bool checkConverter(Type type) {
+    for (final c in converters) {
+      if (c.type == type) return true;
+    }
+
+    return false;
+  }
 }
 
 /// Abstract class for converters.

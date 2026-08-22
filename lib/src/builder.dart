@@ -276,6 +276,12 @@ class CommandGenerator extends GeneratorForSuperclass<Command> {
       return MultiOptionElement(name: name, abbr: validateAbbr(getField(annotation, "abbr")?.toStringValue(), .multiOption), help: getField(annotation, "help")?.toStringValue(), type: (x.type as InterfaceType).typeArguments.first, field: x, annotation: annotation, min: getField(annotation, "min")?.toIntValue());
     }).whereType<MultiOptionElement>();
 
+    final Set<DartType> allTypes = {
+      ...arguments.map((x) => x.type),
+      ...options.map((x) => x.type),
+      ...multiOptions.map((x) => x.type),
+    };
+
     for (final subcommand in subcommands) {
       if (!TypeChecker.typeNamed(Command).isAssignableFromType(subcommand.field.type)) {
         throw InvalidGenerationSourceError("Subcommand ${subcommand.name} needs to be of type Command.");
@@ -345,7 +351,7 @@ extension ${element.name}Help on ${element.name} {
 
   ${allBlank("arguments", "Arguments", "ArgumentData", arguments)}
 
-  ${allBlank("Flags", "flags", "FlagData", flags)}
+  ${allBlank("Flags", "Flags", "FlagData", flags)}
 
   ${allBlank("options", "Options", "OptionData", options)}
 
@@ -400,10 +406,21 @@ final class ${element.internalName} {
     }
 
     final object = ${element.name}();
+    final Set<Type> missingConverters = {};
 
     for (final converter in object.converters) {
       final result = converter.validate();
       if (result != null) throw ConverterValidationError(result);
+    }
+
+    for (final type in [${allTypes.map((x) => x.displayString).join(", ")}]) {
+      if (object.checkConverter(type) == false) {
+        missingConverters.add(type);
+      }
+    }
+
+    if (missingConverters.isNotEmpty) {
+      throw ConverterNotFoundError("Couldn't find converter(s) for types: \${missingConverters.join(", ")}");
     }
 
     if (arguments.contains("-h") || arguments.contains("--help")) {
@@ -465,7 +482,8 @@ final class ${element.internalName} {
                 object.${element.field.name} = value;
                 setOptions.add("${element.name}");
               } catch (e) {
-                throw ParseException("An unexpected error happened while parsing argument '${element.name}':\\n\$e\\nParsing: '\$arg' to ${element.type.displayString}\\nIf you are a developer, please change your converter to catch its own exceptions.", object, object.usage);
+                if (e is ParseException) rethrow;
+                throw ParseException("An unexpected error happened while parsing option '${element.name}':\\n\$e\\nParsing: '\$arg' to ${element.type.displayString}\\nIf you are a developer, please change your converter to catch its own exceptions.", object, object.usage);
               }
 
               break;
@@ -477,21 +495,27 @@ final class ${element.internalName} {
               final converter = object.getConverter(${element.type.displayString});
 
               if (converter == null) {
-                throw ConverterNotFoundError("Converter not found for multi-option ${element.name} and type List<${element.type.displayString}>.");
+                throw ConverterNotFoundError("Converter not found for multi-option ${element.name} and type ${element.type.displayString}.");
               }
 
               if (!iterator.moveNext()) {
                 throw ParseException("Expected value for option '${element.name}'.", object, object.usage);
               }
 
-              final value = converter.convert(iterator.current);
+              try {
+                final value = converter.convert(iterator.current);
 
-              if (value == null) {
-                throw ParseException.fromConversionError(converter.typePretty ?? "${element.type.displayString}", arg, converter.help(), object, object.usage);
+                if (value == null) {
+                  throw ParseException.fromConversionError(converter.typePretty ?? "${element.type.displayString}", arg, converter.help(), object, object.usage);
+                }
+
+                object.${element.field.name}.add(value);
+                setMultiOptions["${element.name}"] = (setMultiOptions["${element.name}"] ?? 0) + 1;
+              } catch (e) {
+                if (e is ParseException) rethrow;
+                throw ParseException("An unexpected error happened while parsing multi-option '${element.name}':\\n\$e\\nParsing: '\$arg' to ${element.type.displayString}\\nIf you are a developer, please change your converter to catch its own exceptions.", object, object.usage);
               }
 
-              object.${element.field.name}.add(value);
-              setMultiOptions["${element.name}"] = (setMultiOptions["${element.name}"] ?? 0) + 1;
               break;
             """.trim();
           }).join("\n")}
@@ -526,6 +550,7 @@ final class ${element.internalName} {
                 object.${element.field.name} = value;
                 setOptions.add("${element.name}");
               } catch (e) {
+                if (e is ParseException) rethrow;
                 throw ParseException("An unexpected error happened while parsing argument '${element.name}':\\n\$e\\nParsing: '\$arg' to ${element.type.displayString}\\nIf you are a developer, please change your converter to catch its own exceptions.", object, object.usage);
               }
 
