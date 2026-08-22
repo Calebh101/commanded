@@ -140,13 +140,8 @@ final class ParentCommandData {
     final object = ParentCommand();
 
     for (final converter in object.converters) {
-      if (converter is! EnumConverter) continue;
-
-      if (converter.type == Enum) {
-        throw Exception(
-          "You must specify a type for EnumConverter. Trust me, I learned this the hard way.",
-        );
-      }
+      final result = converter.validate();
+      if (result != null) throw ConverterValidationError(result);
     }
 
     if (arguments.contains("-h") || arguments.contains("--help")) {
@@ -339,7 +334,7 @@ extension RandomNumberCommandHelp on RandomNumberCommand {
       ),
       (
         name: "verbose",
-        help: "Enable verbose mode.",
+        help: "Enable verbose mode. This gives you extra logs.",
         abbr: "v",
         negatable: false,
       ),
@@ -412,7 +407,7 @@ extension RandomNumberCommandHelp on RandomNumberCommand {
       ),
       verbose: (
         name: "verbose",
-        help: "Enable verbose mode.",
+        help: "Enable verbose mode. This gives you extra logs.",
         abbr: "v",
         negatable: false,
       ),
@@ -490,13 +485,8 @@ final class RandomNumberCommandData {
     final object = RandomNumberCommand();
 
     for (final converter in object.converters) {
-      if (converter is! EnumConverter) continue;
-
-      if (converter.type == Enum) {
-        throw Exception(
-          "You must specify a type for EnumConverter. Trust me, I learned this the hard way.",
-        );
-      }
+      final result = converter.validate();
+      if (result != null) throw ConverterValidationError(result);
     }
 
     if (arguments.contains("-h") || arguments.contains("--help")) {
@@ -847,7 +837,7 @@ extension EchoCommandHelp on EchoCommand {
       ),
       (
         name: "verbose",
-        help: "Enable verbose mode.",
+        help: "Enable verbose mode. This gives you extra logs.",
         abbr: "v",
         negatable: false,
       ),
@@ -898,7 +888,7 @@ extension EchoCommandHelp on EchoCommand {
       ),
       verbose: (
         name: "verbose",
-        help: "Enable verbose mode.",
+        help: "Enable verbose mode. This gives you extra logs.",
         abbr: "v",
         negatable: false,
       ),
@@ -961,13 +951,8 @@ final class EchoCommandData {
     final object = EchoCommand();
 
     for (final converter in object.converters) {
-      if (converter is! EnumConverter) continue;
-
-      if (converter.type == Enum) {
-        throw Exception(
-          "You must specify a type for EnumConverter. Trust me, I learned this the hard way.",
-        );
-      }
+      final result = converter.validate();
+      if (result != null) throw ConverterValidationError(result);
     }
 
     if (arguments.contains("-h") || arguments.contains("--help")) {
@@ -1246,7 +1231,7 @@ extension PrintMyPositionalArgumentsCommandHelp
     return [
       (
         name: "verbose",
-        help: "Enable verbose mode.",
+        help: "Enable verbose mode. This gives you extra logs.",
         abbr: "v",
         negatable: false,
       ),
@@ -1287,7 +1272,7 @@ extension PrintMyPositionalArgumentsCommandHelp
     return (
       verbose: (
         name: "verbose",
-        help: "Enable verbose mode.",
+        help: "Enable verbose mode. This gives you extra logs.",
         abbr: "v",
         negatable: false,
       ),
@@ -1331,7 +1316,7 @@ final class PrintMyPositionalArgumentsCommandData {
     ),
     (
       name: 'arg3',
-      type: bool,
+      type: MyEnum,
       set: (Command object, dynamic value) =>
           (object as PrintMyPositionalArgumentsCommand).arg3 = value,
       required: false,
@@ -1364,13 +1349,8 @@ final class PrintMyPositionalArgumentsCommandData {
     final object = PrintMyPositionalArgumentsCommand();
 
     for (final converter in object.converters) {
-      if (converter is! EnumConverter) continue;
-
-      if (converter.type == Enum) {
-        throw Exception(
-          "You must specify a type for EnumConverter. Trust me, I learned this the hard way.",
-        );
-      }
+      final result = converter.validate();
+      if (result != null) throw ConverterValidationError(result);
     }
 
     if (arguments.contains("-h") || arguments.contains("--help")) {

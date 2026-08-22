@@ -263,6 +263,12 @@ class EchoCommand extends BaseCommand {
   }
 }
 
+// For showing off; see below.
+enum MyEnum {
+  one,
+  two,
+}
+
 // A very basic command to demonstrate positional arguments.
 class PrintMyPositionalArgumentsCommand extends BaseCommand {
   @override
@@ -275,7 +281,7 @@ class PrintMyPositionalArgumentsCommand extends BaseCommand {
   List<Converter<dynamic>> get converters => [
     StringConverter(),
     IntConverter(),
-    BoolConverter(),
+    EnumConverter<MyEnum>(MyEnum.values),
   ];
 
   // Required.
@@ -287,8 +293,9 @@ class PrintMyPositionalArgumentsCommand extends BaseCommand {
   late int arg2;
 
   // Not required.
+  // We'll also use this to show off how enums can be used, using EnumConverter (see above).
   @Argument("arg3", help: "An argument...")
-  bool? arg3;
+  MyEnum? arg3;
 
   @override
   HelpBuilder buildHelp() {

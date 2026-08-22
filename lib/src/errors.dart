@@ -20,6 +20,20 @@ class ConverterNotFoundError extends Error {
   }
 }
 
+/// This is thrown when a converter returns a message from `validate()`.
+class ConverterValidationError extends Error {
+  /// Message for this error.
+  final String message;
+
+  /// This is thrown when a converter returns a message from `validate()`.
+  ConverterValidationError(this.message);
+
+  @override
+  String toString() {
+    return "ConverterValidationError: $message";
+  }
+}
+
 /// This is thrown when an exception occurs while parsing arguments,
 /// specifically upon invalid arguments from the user.
 ///

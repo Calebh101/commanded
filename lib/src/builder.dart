@@ -1,6 +1,6 @@
 // ignore_for_file: public_member_api_docs
 
-import 'package:commanded/src/classes.dart';
+import 'package:commanded/src/classes.dart' hide Builder;
 import 'package:commanded/src/generator_for_superclass.dart';
 import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/dart/element/element.dart';
@@ -398,11 +398,8 @@ final class ${element.internalName} {
     final object = ${element.name}();
 
     for (final converter in object.converters) {
-      if (converter is! EnumConverter) continue;
-
-      if (converter.type == Enum) {
-        throw Exception("You must specify a type for EnumConverter. Trust me, I learned this the hard way.");
-      }
+      final result = converter.validate();
+      if (result != null) throw ConverterValidationError(result);
     }
 
     if (arguments.contains("-h") || arguments.contains("--help")) {

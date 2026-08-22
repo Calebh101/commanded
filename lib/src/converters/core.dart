@@ -48,8 +48,7 @@ class DoubleConverter extends Converter<double> {
 ///
 /// **IMPORTANT!** You must specify a type argument with this converter! You **will** see a runtime exception if you ignore this!
 class EnumConverter<T extends Enum> extends Converter<T> {
-  /// A list of the enum's values.<br>
-  /// All that's required here is just writing `.values`.
+  /// A list of the enum's values.
   final List<T> values;
 
   /// Use this if you have some other way to get an enum's name other than the builtin `name` property.
@@ -71,6 +70,12 @@ class EnumConverter<T extends Enum> extends Converter<T> {
 
     if (i != null && i < values.length) return values.elementAtOrNull(i);
     return values.firstWhereOrNull((x) => (getName?.call(x) ?? x.name) == value);
+  }
+
+  @override
+  String? validate() {
+    if (T == Enum) return "You must specify a type for EnumConverter. Trust me, I learned this the hard way.";
+    return null;
   }
 
   @override

@@ -1,10 +1,10 @@
 name: commanded
 description: A Dart package to make parsing CLI arguments easier and safer.
-version: 0.0.0
+version: 0.0.1
 repository: https://github.com/Calebh101/commanded
 
 environment:
-  sdk: ^3.13.0
+  sdk: ^3.13.1
 
 dependencies:
   build: ^4.0.10

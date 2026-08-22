@@ -173,6 +173,16 @@ abstract class Converter<T> {
   /// If the input is invalid, return null.
   T? convert(String input);
 
+  /// This is used to validate that this converter is set up correctly.
+  ///
+  /// This is called when the program is ran.
+  /// If a string is returned, an error will be thrown.
+  ///
+  /// This is only for very specific cases, like type checking.
+  /// For an example on how this can be used,
+  /// see `EnumConverter.validate` in `converters/core.dart`.
+  String? validate() => null;
+
   /// Generate a help message for when a value fails to convert.
   ///
   /// Use this to put supported values or tips.
@@ -199,20 +209,26 @@ extension on String {
   }
 }
 
-final class _Item {
+/// Class representing an item for [HelpBuilder].
+class HelpItem {
+  /// Left column.
   final String? left;
+
+  /// Right column.
   final String? right;
 
-  _Item(this.left, this.right);
+  /// Class representing an item for [HelpBuilder].
+  HelpItem(this.left, this.right);
 
+  /// Turn this into a string.
   String pretty(int padding) {
     return "${(left ?? "").padRight(padding)}  ${right ?? ""}";
   }
 }
 
-/// Class representing helpers.
-abstract class Helper {
-  /// Class representing helpers.
+/// Class representing builders.
+abstract class Builder {
+  /// Class representing builders.
   new();
 
   /// Build the current state of the object into an output string.
@@ -225,15 +241,20 @@ abstract class Helper {
 ///
 /// This builder collects a list of items and renders them from top to bottom,
 /// with 2 columns: one for the names of the items, and the other for help messages.
-class HelpBuilder extends Helper {
+///
+/// If you'd like to create your own functionality or stringification method,
+/// you are able to extend this class.
+class HelpBuilder extends Builder {
   /// Helper class for building help messages.
   ///
   /// This builder collects a list of items and renders them from top to bottom,
   /// with 2 columns: one for the names of the items, and the other for help messages.
   new();
 
-  // Stateful
-  final List<_Item> _items = [];
+  /// The current list of items of this builder.
+  ///
+  /// This is stateful.
+  final List<HelpItem> items = [];
 
   /// Add an argument from an [ArgumentData] to the list of items.
   ///
@@ -244,7 +265,7 @@ class HelpBuilder extends Helper {
   /// [my-optional-argument]
   /// ```
   void addArgument(ArgumentData data) {
-    _items.add(.new(data.name.bracketsIf(!data.required), data.help));
+    items.add(.new(data.name.bracketsIf(!data.required), data.help));
   }
 
   /// Add a flag from a [FlagData] to the list of items.
@@ -255,7 +276,7 @@ class HelpBuilder extends Helper {
   /// [--my-flag/-f]
   /// ```
   void addFlag(FlagData data) {
-    _items.add(.new(["--${data.name}", if (data.abbr != null) "-${data.abbr}"].join("/").brackets, data.help));
+    items.add(.new(["--${data.name}", if (data.abbr != null) "-${data.abbr}"].join("/").brackets, data.help));
   }
 
   /// Add an option from an [OptionData] to the list of items.
@@ -267,7 +288,7 @@ class HelpBuilder extends Helper {
   /// [--my-optional-option <my-optional-option>]
   /// ```
   void addOption(OptionData data) {
-    _items.add(.new(["--${data.name} <${data.name}>"].join("/").bracketsIf(!data.required), data.help));
+    items.add(.new(["--${data.name} <${data.name}>"].join("/").bracketsIf(!data.required), data.help));
   }
 
   /// Add a multi-option item from a [MultiOptionData] to the list of items.
@@ -281,19 +302,19 @@ class HelpBuilder extends Helper {
   ///
   /// The option is required if its `min` value is 1 or more.
   void addMultiOption(MultiOptionData data) {
-    _items.add(.new(["--${data.name} <${data.name}>"].join("/").bracketsIf((data.min ?? 0) < 1), data.help));
+    items.add(.new(["--${data.name} <${data.name}>"].join("/").bracketsIf((data.min ?? 0) < 1), data.help));
   }
 
   /// Add a subcommand from a [SubcommandData] to the list of items.
   ///
   /// Subcommands will simply be represented as their name.
   void addSubcommand(SubcommandData data) {
-    _items.add(.new(data.name, data.help));
+    items.add(.new(data.name, data.help));
   }
 
   /// Add a blank line to the list of items.
   void addSeparator() {
-    _items.add(.new(null, null));
+    items.add(.new(null, null));
   }
 
   /// Add a custom line to the list of items.
@@ -303,13 +324,13 @@ class HelpBuilder extends Helper {
   ///
   /// `null` = blank.
   void addCustom([String? left, String? right]) {
-    _items.add(.new(left, right));
+    items.add(.new(left, right));
   }
 
   @override
   String build() {
-    final maxLeft = _items.map((x) => x.left?.length ?? 0).max;
-    return _items.map((x) => x.pretty(max(20, maxLeft))).join("\n");
+    final maxLeft = items.map((x) => x.left?.length ?? 0).max;
+    return items.map((x) => x.pretty(max(20, maxLeft))).join("\n");
   }
 }
 
@@ -317,15 +338,20 @@ class HelpBuilder extends Helper {
 ///
 /// This builder collects a list of items and renders them from left to right,
 /// joining them by a space.
-class UsageBuilder extends Helper {
+///
+/// If you'd like to create your own functionality or stringification method,
+/// you are able to extend this class.
+class UsageBuilder extends Builder {
   /// Helper class for building help messages.
   ///
   /// This builder collects a list of items and renders them from left to right,
   /// joining them by a space.
   new();
 
-  // Stateful
-  final List<String> _items = [];
+  /// The current list of items of this builder.
+  ///
+  /// This is stateful.
+  final List<String> items = [];
 
   /// Add an argument from an [ArgumentData] to the list of items.
   ///
@@ -336,7 +362,7 @@ class UsageBuilder extends Helper {
   /// [my-optional-argument]
   /// ```
   void addArgument(ArgumentData data) {
-    _items.add(data.name.bracketsIf(!data.required));
+    items.add(data.name.bracketsIf(!data.required));
   }
 
   /// Add a flag from a [FlagData] to the list of items.
@@ -347,7 +373,7 @@ class UsageBuilder extends Helper {
   /// [--my-flag/-f]
   /// ```
   void addFlag(FlagData data) {
-    _items.add(["--${data.name}", if (data.abbr != null) "-${data.abbr}"].join("/").brackets);
+    items.add(["--${data.name}", if (data.abbr != null) "-${data.abbr}"].join("/").brackets);
   }
 
   /// Add an option from an [OptionData] to the list of items.
@@ -359,7 +385,7 @@ class UsageBuilder extends Helper {
   /// [--my-optional-option <my-optional-option>]
   /// ```
   void addOption(OptionData data) {
-    _items.add(["--${data.name} <${data.name}>"].join("/").bracketsIf(!data.required));
+    items.add(["--${data.name} <${data.name}>"].join("/").bracketsIf(!data.required));
   }
 
   /// Add a multi-option item from a [MultiOptionData] to the list of items.
@@ -373,7 +399,7 @@ class UsageBuilder extends Helper {
   ///
   /// The option is required if its `min` value is 1 or more.
   void addMultiOption(MultiOptionData data) {
-    _items.add(["--${data.name} <${data.name}>"].join("/").bracketsIf((data.min ?? 0) < 1));
+    items.add(["--${data.name} <${data.name}>"].join("/").bracketsIf((data.min ?? 0) < 1));
   }
 
   /// Add a custom string into the items.
@@ -382,11 +408,11 @@ class UsageBuilder extends Helper {
   ///
   /// If nothing is provided, nothing is added.
   void addCustom(String? value) {
-    if (value != null) _items.add(value);
+    if (value != null) items.add(value);
   }
 
   @override
   String build([String separator = " "]) {
-    return _items.join(separator);
+    return items.join(separator);
   }
 }
