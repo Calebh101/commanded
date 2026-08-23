@@ -11,3 +11,7 @@
 
 - Added field validation at build.
 - Updated documentation.
+
+## 0.0.3
+
+- Fixed a lot of bugs.

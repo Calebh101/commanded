@@ -364,7 +364,7 @@ bool runCommands(List<String> arguments) {
 extension ${element.name}Help on ${element.name} {
   /// The default usage builder for this command.
   UsageBuilder defaultUsageBuilder() {
-    return UsageBuilder()${flags.map((x) => "..addFlag(flags.${x.field.name})").join("")}${options.map((x) => "..addOption(options.${x.field.name})").join("")}${multiOptions.map((x) => "..addMultiOption(multiOptions.${x.field.name})").join("")}${arguments.map((x) => "..addArgument(arguments.${x.field.name})").join("")}..addCustom(settings.restUsageName != null ? "...\${settings.restUsageName}" : null);
+    return UsageBuilder()..addCustom(name)${flags.map((x) => "..addFlag(flags.${x.field.name})").join("")}${options.map((x) => "..addOption(options.${x.field.name})").join("")}${multiOptions.map((x) => "..addMultiOption(multiOptions.${x.field.name})").join("")}${arguments.map((x) => "..addArgument(arguments.${x.field.name})").join("")}..addCustom(settings.restUsageName != null ? "...\${settings.restUsageName}" : null);
   }
 
   /// Builds the usage from either the provided builder or the default builder,
@@ -395,13 +395,15 @@ extension ${element.name}Help on ${element.name} {
 }
 
 final class ${element.internalName} {
+  static void Function(Object? input) onPrint = print;
+
   static final List<PositionalArgumentData> _positional = [${arguments.map((arg) {
     return "(name: '${arg.name}', type: ${arg.type.displayString}, set: (Command object, dynamic value) => (object as ${element.name}).${arg.field.name} = value, required: ${!arg.optional})";
   }).join(", ")}];
 
   // ignore: unused_element
   static void _debug(String Function() input) {
-    ${debug ? "print('[Debug] [${element.name}] \${input()}');" : ''}
+    ${debug ? "onPrint('[Debug] [${element.name}] \${input()}');" : ''}
   }
 
   static bool runFromList(List<String> arguments) {
@@ -411,10 +413,10 @@ final class ${element.internalName} {
       ${debug ? 'stopwatch.stop(); _debug(() => "Elapsed time: \${stopwatch.elapsedMicroseconds}us");' : ""}
       return true;
     } on ParseException catch (e) {
-      if (e.message != null) print(e.message);
-      print("Usage: \${e.usage}");
-      print("");
-      print(e.object.buildHelp().build());
+      if (e.message != null) onPrint(e.message);
+      onPrint("Usage: \${e.usage}");
+      onPrint("");
+      onPrint(e.object.buildHelp().build());
 
       return false;
     }

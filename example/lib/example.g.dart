@@ -13,9 +13,11 @@ bool runCommands(List<String> arguments) {
 extension ParentCommandHelp on ParentCommand {
   /// The default usage builder for this command.
   UsageBuilder defaultUsageBuilder() {
-    return UsageBuilder()..addCustom(
-      settings.restUsageName != null ? "...${settings.restUsageName}" : null,
-    );
+    return UsageBuilder()
+      ..addCustom(name)
+      ..addCustom(
+        settings.restUsageName != null ? "...${settings.restUsageName}" : null,
+      );
   }
 
   /// Builds the usage from either the provided builder or the default builder,
@@ -102,6 +104,8 @@ extension ParentCommandHelp on ParentCommand {
 }
 
 final class ParentCommandData {
+  static void Function(Object? input) onPrint = print;
+
   static final List<PositionalArgumentData> _positional = [];
 
   // ignore: unused_element
@@ -113,10 +117,10 @@ final class ParentCommandData {
 
       return true;
     } on ParseException catch (e) {
-      if (e.message != null) print(e.message);
-      print("Usage: ${e.usage}");
-      print("");
-      print(e.object.buildHelp().build());
+      if (e.message != null) onPrint(e.message);
+      onPrint("Usage: ${e.usage}");
+      onPrint("");
+      onPrint(e.object.buildHelp().build());
 
       return false;
     }
@@ -305,6 +309,7 @@ extension RandomNumberCommandHelp on RandomNumberCommand {
   /// The default usage builder for this command.
   UsageBuilder defaultUsageBuilder() {
     return UsageBuilder()
+      ..addCustom(name)
       ..addFlag(flags.secure)
       ..addFlag(flags.timed)
       ..addFlag(flags.verbose)
@@ -470,6 +475,8 @@ extension RandomNumberCommandHelp on RandomNumberCommand {
 }
 
 final class RandomNumberCommandData {
+  static void Function(Object? input) onPrint = print;
+
   static final List<PositionalArgumentData> _positional = [];
 
   // ignore: unused_element
@@ -481,10 +488,10 @@ final class RandomNumberCommandData {
 
       return true;
     } on ParseException catch (e) {
-      if (e.message != null) print(e.message);
-      print("Usage: ${e.usage}");
-      print("");
-      print(e.object.buildHelp().build());
+      if (e.message != null) onPrint(e.message);
+      onPrint("Usage: ${e.usage}");
+      onPrint("");
+      onPrint(e.object.buildHelp().build());
 
       return false;
     }
@@ -843,6 +850,7 @@ extension EchoCommandHelp on EchoCommand {
   /// The default usage builder for this command.
   UsageBuilder defaultUsageBuilder() {
     return UsageBuilder()
+      ..addCustom(name)
       ..addFlag(flags.capitalize)
       ..addFlag(flags.verbose)
       ..addOption(options.repeat)
@@ -961,6 +969,8 @@ extension EchoCommandHelp on EchoCommand {
 }
 
 final class EchoCommandData {
+  static void Function(Object? input) onPrint = print;
+
   static final List<PositionalArgumentData> _positional = [];
 
   // ignore: unused_element
@@ -972,10 +982,10 @@ final class EchoCommandData {
 
       return true;
     } on ParseException catch (e) {
-      if (e.message != null) print(e.message);
-      print("Usage: ${e.usage}");
-      print("");
-      print(e.object.buildHelp().build());
+      if (e.message != null) onPrint(e.message);
+      onPrint("Usage: ${e.usage}");
+      onPrint("");
+      onPrint(e.object.buildHelp().build());
 
       return false;
     }
@@ -1253,6 +1263,7 @@ extension PrintMyPositionalArgumentsCommandHelp
   /// The default usage builder for this command.
   UsageBuilder defaultUsageBuilder() {
     return UsageBuilder()
+      ..addCustom(name)
       ..addFlag(flags.verbose)
       ..addArgument(arguments.arg1)
       ..addArgument(arguments.arg2)
@@ -1352,6 +1363,8 @@ extension PrintMyPositionalArgumentsCommandHelp
 }
 
 final class PrintMyPositionalArgumentsCommandData {
+  static void Function(Object? input) onPrint = print;
+
   static final List<PositionalArgumentData> _positional = [
     (
       name: 'arg1',
@@ -1385,10 +1398,10 @@ final class PrintMyPositionalArgumentsCommandData {
 
       return true;
     } on ParseException catch (e) {
-      if (e.message != null) print(e.message);
-      print("Usage: ${e.usage}");
-      print("");
-      print(e.object.buildHelp().build());
+      if (e.message != null) onPrint(e.message);
+      onPrint("Usage: ${e.usage}");
+      onPrint("");
+      onPrint(e.object.buildHelp().build());
 
       return false;
     }

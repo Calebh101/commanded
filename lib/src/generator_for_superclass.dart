@@ -56,6 +56,12 @@ abstract class GeneratorForSuperclass<T> extends Generator {
         continue;
       }
 
+      final superElement = supertype.element;
+
+      if (superElement is ClassElement && superElement.name == 'Object') {
+        continue;
+      }
+
       if (!typeChecker.isExactlyType(supertype) && !typeChecker.isSuperTypeOf(supertype)) {
         continue;
       }

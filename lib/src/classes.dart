@@ -344,7 +344,7 @@ class HelpBuilder extends Builder {
 
   @override
   String build() {
-    final maxLeft = items.map((x) => x.left?.length ?? 0).max;
+    final maxLeft = items.map((x) => x.left?.length ?? 0).maxOrNull ?? 0;
     return items.map((x) => x.pretty(max(20, maxLeft))).join("\n");
   }
 }
