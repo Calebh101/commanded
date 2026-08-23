@@ -472,6 +472,35 @@ final class ${element.internalName} {
       iterator.moveNext();
     }
 
+    void handlePositional(String arg) {
+      if (pos <= maxPos) {
+        final target = _positional[pos];
+        final converter = object.getConverter(target.type); // Converts strings into the preferred type
+
+        if (converter == null) {
+          throw ConverterNotFoundError("Converter not found for positional argument \${target.name} and type \${target.type}.");
+        }
+
+        final value = converter.convert(arg);
+
+        if (value == null) {
+          throw ParseException.fromConversionError(converter.typePretty ?? target.type.toString(), arg, converter.help(), object, object.usage);
+        }
+
+        target.set(object, value);
+        pos++;
+        foundArgument = true;
+      } else {
+        if (!object.settings.allowRest) {
+          throw ParseException("Too many arguments. Expected ${arguments.length}, but got an extra: '\$arg'", object, object.usage);
+        }
+
+        rest.add(arg);
+        pos++;
+        foundArgument = true;
+      }
+    }
+
     while (iterator.moveNext()) {
       final arg = iterator.current;
       final noOptions = foundArgument && !object.settings.allowTrailingOptions;
@@ -545,7 +574,13 @@ final class ${element.internalName} {
               break;
             """.trim();
           }).join("\n")}
-          default: throw ParseException("Invalid flag/option: \$arg", object, object.usage);
+          default:
+            if (object.settings.errorOnInvalidOptions) {
+              throw ParseException("Invalid flag/option: \$arg", object, object.usage);
+            } else {
+              handlePositional(arg);
+              break;
+            }
         }
       } else if (!noOptions && arg.startsWith("-")) {
         switch (arg.replaceFirst("-", "")) {
@@ -607,33 +642,16 @@ final class ${element.internalName} {
               break;
             """.trim();
           }).join("\n")}
-          default: throw ParseException("Invalid flag/option: \$arg", object, object.usage);
+          default:
+            if (object.settings.errorOnInvalidOptions) {
+              throw ParseException("Invalid flag/option: \$arg", object, object.usage);
+            } else {
+              handlePositional(arg);
+              break;
+            }
         }
-      } else if (pos <= maxPos) {
-        final target = _positional[pos];
-        final converter = object.getConverter(target.type); // Converts strings into the preferred type
-
-        if (converter == null) {
-          throw ConverterNotFoundError("Converter not found for positional argument \${target.name} and type \${target.type}.");
-        }
-
-        final value = converter.convert(arg);
-
-        if (value == null) {
-          throw ParseException.fromConversionError(converter.typePretty ?? target.type.toString(), arg, converter.help(), object, object.usage);
-        }
-
-        target.set(object, value);
-        pos++;
-        foundArgument = true;
       } else {
-        if (!object.settings.allowRest) {
-          throw ParseException("Too many arguments. Expected ${arguments.length}, but got an extra: '\$arg'", object, object.usage);
-        }
-
-        rest.add(arg);
-        pos++;
-        foundArgument = true;
+        handlePositional(arg);
       }
     }
 

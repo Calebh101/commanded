@@ -29,6 +29,12 @@ final class CommandSettings {
   /// If this is false, then `--my-flag` will be processed as a flag, but `--my-other-flag` will be processed as a positional argument.
   final bool allowTrailingOptions;
 
+  /// If this is enabled (default), then if the parser comes across an option or flag it doesn't recognize,
+  /// it'll error and show help.
+  ///
+  /// If this is disabled, invalid options and flags will be treated as positional arguments.
+  final bool errorOnInvalidOptions;
+
   /// This only applies to the auto-generated usage builder.
   ///
   /// If this is `text`, then this will be shown in the usage:<br>
@@ -39,7 +45,7 @@ final class CommandSettings {
 
   /// Various settings for commands.
   /// These can be changed without needing to rerun Build Runner.
-  const CommandSettings({this.subcommandsOnly = false, this.allowRest = false, this.allowTrailingOptions = true, this.restUsageName});
+  const CommandSettings({this.subcommandsOnly = false, this.allowRest = false, this.allowTrailingOptions = true, this.errorOnInvalidOptions = true, this.restUsageName});
 }
 
 /// Abstract class for defining a command.
@@ -273,25 +279,24 @@ class HelpBuilder extends Builder {
 
   /// Add an argument from an [ArgumentData] to the list of items.
   ///
-  /// Arguments will be represented as their name, with brackets around it if the argument is optional, like so:
+  /// Arguments will be represented as their name, like so:
   ///
   /// ```
-  /// my-required-argument
-  /// [my-optional-argument]
+  /// argument
   /// ```
   void addArgument(ArgumentData data) {
-    items.add(.new(data.name.bracketsIf(!data.required), data.help));
+    items.add(.new(data.name, data.help));
   }
 
   /// Add a flag from a [FlagData] to the list of items.
   ///
-  /// Flags will be represented as 2 dashes before their name, with an optional abbreviation, with brackets around them, like so:
+  /// Flags will be represented as 2 dashes before their name, with an optional abbreviation, like so:
   ///
   /// ```
-  /// [--my-flag/-f]
+  /// --my-flag/-f
   /// ```
   void addFlag(FlagData data) {
-    items.add(.new(["--${data.name}", if (data.abbr != null) "-${data.abbr}"].join("/").brackets, data.help));
+    items.add(.new(["--${data.name}", if (data.abbr != null) "-${data.abbr}"].join("/"), data.help));
   }
 
   /// Add an option from an [OptionData] to the list of items.
@@ -299,11 +304,10 @@ class HelpBuilder extends Builder {
   /// Options will be represented like so:
   ///
   /// ```
-  /// --my-required-option <my-required-option>
-  /// [--my-optional-option <my-optional-option>]
+  /// --my-option <my-option>
   /// ```
   void addOption(OptionData data) {
-    items.add(.new(["--${data.name} <${data.name}>"].join("/").bracketsIf(!data.required), data.help));
+    items.add(.new(["--${data.name} <${data.name}>"].join("/"), data.help));
   }
 
   /// Add a multi-option item from a [MultiOptionData] to the list of items.
@@ -311,20 +315,90 @@ class HelpBuilder extends Builder {
   /// Multi-options will be represented like so:
   ///
   /// ```
-  /// --my-required-option <my-required-option>
-  /// [--my-optional-option <my-optional-option>]
+  /// --my-multi-option <my-multi-option>
   /// ```
   ///
   /// The option is required if its `min` value is 1 or more.
   void addMultiOption(MultiOptionData data) {
-    items.add(.new(["--${data.name} <${data.name}>"].join("/").bracketsIf((data.min ?? 0) < 1), data.help));
+    items.add(.new(["--${data.name} <${data.name}>"].join("/"), data.help));
   }
 
   /// Add a subcommand from a [SubcommandData] to the list of items.
   ///
-  /// Subcommands will simply be represented as their name.
+  /// Subcommands will simply be represented as their name, like so:
+  ///
+  /// ```
+  /// subcommand
+  /// ```
   void addSubcommand(SubcommandData data) {
     items.add(.new(data.name, data.help));
+  }
+
+  /// Add several arguments from [ArgumentData] to the list of items.
+  ///
+  /// Arguments will be represented as their name, like so:
+  ///
+  /// ```
+  /// argument
+  /// ```
+  void addArguments(List<ArgumentData> data) {
+    for (final x in data) {
+      addArgument(x);
+    }
+  }
+
+  /// Add several flags from [FlagData] to the list of items.
+  ///
+  /// Flags will be represented as 2 dashes before their name, with an optional abbreviation, like so:
+  ///
+  /// ```
+  /// --my-flag/-f
+  /// ```
+  void addFlags(List<FlagData> data) {
+    for (final x in data) {
+      addFlag(x);
+    }
+  }
+
+  /// Add several options from [OptionData] to the list of items.
+  ///
+  /// Options will be represented like so:
+  ///
+  /// ```
+  /// --my-option <my-option>
+  /// ```
+  void addOptions(List<OptionData> data) {
+    for (final x in data) {
+      addOption(x);
+    }
+  }
+
+  /// Add several multi-option items from [MultiOptionData] to the list of items.
+  ///
+  /// Multi-options will be represented like so:
+  ///
+  /// ```
+  /// --my-multi-option <my-multi-option>
+  /// ```
+  ///
+  /// The option is required if its `min` value is 1 or more.
+  void addMultiOptions(List<MultiOptionData> data) {
+    for (final x in data) {
+      addMultiOption(x);
+    }
+  }
+
+  /// Add several subcommands from [SubcommandData] to the list of items.
+  ///
+  /// Subcommands will simply be represented as their name, like so:
+  ///
+  /// ```
+  /// subcommand
+  /// ```
+  void addSubcommands(List<SubcommandData> data) {
+    for (final x in data) {
+      addSubcommand(x);
+    }
   }
 
   /// Add a blank line to the list of items.
@@ -418,6 +492,63 @@ class UsageBuilder extends Builder {
   /// The option is required if its `min` value is 1 or more.
   void addMultiOption(MultiOptionData data) {
     items.add(["--${data.name} <${data.name}>"].join("/").bracketsIf((data.min ?? 0) < 1));
+  }
+
+  /// Add several arguments from [ArgumentData] to the list of items.
+  ///
+  /// Arguments will be represented as their name, with brackets around it if the argument is optional, like so:
+  ///
+  /// ```
+  /// my-required-argument
+  /// [my-optional-argument]
+  /// ```
+  void addArguments(List<ArgumentData> data) {
+    for (final x in data) {
+      addArgument(x);
+    }
+  }
+
+  /// Add several flags from [FlagData] to the list of items.
+  ///
+  /// Flags will be represented as 2 dashes before their name, with an optional abbreviation, with brackets around them, like so:
+  ///
+  /// ```
+  /// [--my-flag/-f]
+  /// ```
+  void addFlags(List<FlagData> data) {
+    for (final x in data) {
+      addFlag(x);
+    }
+  }
+
+  /// Add several options from [OptionData] to the list of items.
+  ///
+  /// Options will be represented like so:
+  ///
+  /// ```
+  /// --my-required-option <my-required-option>
+  /// [--my-optional-option <my-optional-option>]
+  /// ```
+  void addOptions(List<OptionData> data) {
+    for (final x in data) {
+      addOption(x);
+    }
+  }
+
+  /// Add several multi-option items from [MultiOptionData] to the list of items.
+  ///
+  /// Multi-options will be represented like so:
+  ///
+  /// ```
+  /// --my-required-option <my-required-option>
+  /// [--my-optional-option <my-optional-option>]
+  /// ```
+  ///
+  /// The option is required if its `min` value is 1 or more.
+  void addMultiOptions(List<MultiOptionData> data) {
+    for (final x in data) {
+      addMultiOption(x);
+    }
   }
 
   /// Add a custom string into the items.

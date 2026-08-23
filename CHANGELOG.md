@@ -15,3 +15,9 @@
 ## 0.0.3
 
 - Fixed a lot of bugs.
+
+## 0.0.4
+
+- Added functions like `addArguments`, `addOptions`, etc to `HelpBuilder` and `UsageBuilder`.
+- Added new command setting to control if the parser should parse invalid flags as positional arguments. (`errorOnInvalidOptions`)
+- Changed a couple small things related to builder rendering.

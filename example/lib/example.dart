@@ -77,12 +77,13 @@ class ParentCommand extends Command {
 
   // Build the block of text that shows up when --help is called.
   // This is also very customizable!
+  //
+  // We don't do much here, but we'll use addSubcommands to make things easier.
+  // We'll do more later.
   @override
   HelpBuilder buildHelp() {
     return .new()
-      ..addSubcommand(subcommands.randomNumberCommand)
-      ..addSubcommand(subcommands.echoCommand)
-      ..addSubcommand(subcommands.printMyPositionalArgumentsCommand)
+      ..addSubcommands(allSubcommands)
       ;
   }
 
@@ -116,6 +117,10 @@ class RandomNumberCommand extends BaseCommand {
   @Option("max", help: "Max number to generate, inclusive. Defaults to 100.")
   int max = 100;
 
+  // Not gonna repeat that again
+  @Option("count", abbr: "c", help: "Amount of numbers to generate. Defaults to 1.")
+  int count = 1;
+
   // Since it's not late, and we put a default, the flag will default to false.
   @Flag("secure", abbr: "s", help: "Whether to make this RNG secure. Defaults to false.")
   bool secure = false;
@@ -139,6 +144,7 @@ class RandomNumberCommand extends BaseCommand {
   String? validate() {
     if (min < 0 || max < 0) return "Both min and max cannot be negative.";
     if (min > max) return "min must be equal to or lesser than max.";
+    if (count < 1) return "Count must be positive.";
     return null;
   }
 
@@ -147,23 +153,25 @@ class RandomNumberCommand extends BaseCommand {
   void onRun() {
     final Random random = (secure ? .secure() : .new());
     final stopwatch = Stopwatch()..start();
-
     bool avoided = false;
-    int? value;
 
-    while (value == null || avoids.contains(value)) {
-      if (value != null) avoided = true;
-      value = random.nextInt((max - min) + 1) + min;
+    for (int i = 0; i < count; i++) {
+      int? value;
+
+      while (value == null || avoids.contains(value)) {
+        if (value != null) avoided = true;
+        value = random.nextInt((max - min) + 1) + min;
+      }
+
+      stopwatch.stop();
+      print(value);
     }
-
-    stopwatch.stop();
-    print(value);
 
     if (timed) print("Time: ${avoided ? "<invalid due to value avoided>" : stopwatch.elapsedMicroseconds}us");
     if (verbose) print("Generated number! (secure: $secure, avoided: ${avoids.join(", ")})"); // We're using verbose, from BaseCommand!
   }
 
-  // Build our help, but this time with options instead of subcommands.
+  // Build our help, but this time with more customization!
   // We can even add separators and custom text! How cool is that!
   @override
   HelpBuilder buildHelp() {
@@ -186,7 +194,7 @@ class EchoCommand extends BaseCommand {
 
   // These will be explained below.
   @override
-  CommandSettings get settings => .new(allowTrailingOptions: false, allowRest: true);
+  CommandSettings get settings => .new(allowTrailingOptions: false, allowRest: true, errorOnInvalidOptions: false);
 
   // Define converters for options, multi-options, and arguments.
   // If we don't do this, we'll get a runtime error.
@@ -256,6 +264,11 @@ class EchoCommand extends BaseCommand {
     // You'll actually see the text:
     //   hey there! --repeat 3
     // Instead of the text being repeated 3 times.
+    //
+    // There's one more setting that'll come into play: errorOnInvalidOptions.
+    // Because we disabled this, if the parser comes across an option or flag it doesn't know about, it'll parse it as a positional argument.
+    // Try doing this! When testing this command, add a random flag that doesn't exist, like --my-flag.
+    // It'll get parsed as the text!
     final text = switch (capitalize) {
       true => rest.join(" ").toUpperCase(),
       false => rest.join(" ").toLowerCase(),
@@ -304,9 +317,7 @@ class PrintMyPositionalArgumentsCommand extends BaseCommand {
   @override
   HelpBuilder buildHelp() {
     return .new()
-      ..addArgument(arguments.arg1)
-      ..addArgument(arguments.arg2)
-      ..addArgument(arguments.arg3)
+      ..addArguments(allArguments)
       ;
   }
 
