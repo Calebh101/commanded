@@ -156,6 +156,12 @@ class Subcommand extends Parameter {
   const Subcommand(super.name, {super.help});
 }
 
+class Rest extends Parameter {
+  final int? min;
+
+  const Rest(super.name, {super.help, this.min});
+}
+
 /// Annotation for defining a main command.
 ///
 /// Each command gets a `MyCommandData.runFromList` static method

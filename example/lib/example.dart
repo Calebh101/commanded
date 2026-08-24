@@ -194,9 +194,9 @@ class EchoCommand extends BaseCommand {
 
   // These will be explained below.
   @override
-  CommandSettings get settings => .new(allowTrailingOptions: false, allowRest: true, errorOnInvalidOptions: false);
+  CommandSettings get settings => .new(allowTrailingOptions: false, errorOnInvalidOptions: false);
 
-  // Define converters for options, multi-options, and arguments.
+  // Define converters for options, multi-options, arguments, and rest parameters.
   // If we don't do this, we'll get a runtime error.
   // We don't have to do this for flags.
   @override
@@ -217,6 +217,15 @@ class EchoCommand extends BaseCommand {
   // - Not provided: This value stays null. We'll leave the text how it is.
   @Flag("capitalize", negatable: true, help: "Whether to capitalize this string, or make it all lowercase.")
   bool? capitalize;
+
+  // Ooh, what's this Rest thing?
+  // Well, this basically tells the command that if the user provides any extra positional arguments, to try to parse it and add it to this list.
+  // You can only have up to 1 of these; if you need to override ones from higher up, simply make this one have the same name.
+  //
+  // min here is like multi-options. If there's less than min of these provided, we'll throw a parse error.
+  // Also converters apply here too!
+  @Rest("text", help: "Your words.", min: 1)
+  final List<String> rest = [];
 
   // Some basic help building.
   @override
@@ -244,7 +253,6 @@ class EchoCommand extends BaseCommand {
   @override
   String? validate() {
     if (repeat < 1) return "repeat must be positive.";
-    if (rest.isEmpty) return "Text must be provided.";
     return null;
   }
 
@@ -269,6 +277,7 @@ class EchoCommand extends BaseCommand {
     // Because we disabled this, if the parser comes across an option or flag it doesn't know about, it'll parse it as a positional argument.
     // Try doing this! When testing this command, add a random flag that doesn't exist, like --my-flag.
     // It'll get parsed as the text!
+
     final text = switch (capitalize) {
       true => rest.join(" ").toUpperCase(),
       false => rest.join(" ").toLowerCase(),
@@ -314,10 +323,16 @@ class PrintMyPositionalArgumentsCommand extends BaseCommand {
   @Argument("arg3", help: "An argument...")
   MyEnum? arg3;
 
+  // We'll also add a rest parameter like above!
+  // This'll show off how you can use more than just strings here.
+  @Rest("numbers", help: "Numbers!")
+  final List<int> numbers = [];
+
   @override
   HelpBuilder buildHelp() {
     return .new()
       ..addArguments(allArguments)
+      ..addRest(numbersData)
       ;
   }
 
@@ -326,6 +341,7 @@ class PrintMyPositionalArgumentsCommand extends BaseCommand {
     print("arg1: $arg1 (${arg1.runtimeType})");
     print("arg2: $arg2 (${arg2.runtimeType})");
     print("arg3: $arg3 (${arg3.runtimeType})");
+    print("numbers: ${numbers.join(", ")} (${numbers.runtimeType})");
   }
 
   // Because we defined arg1, arg2, and arg3 in that order, that's the order positional arguments will be parsed as.

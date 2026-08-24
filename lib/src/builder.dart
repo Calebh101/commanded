@@ -47,6 +47,7 @@ enum AnnotationType {
   argument("argument", "Argument"),
   flag("flag", "Flag"),
   subcommand("subcommand", "Subcommand"),
+  rest("rest parameter", "Rest"),
   ;
 
   final String pretty;
@@ -55,7 +56,7 @@ enum AnnotationType {
   const AnnotationType(this.pretty, this.className);
 }
 
-abstract class ParameterElement {
+sealed class ParameterElement {
   final String name;
   final String? help;
 
@@ -67,6 +68,7 @@ abstract class ParameterElement {
   String toRecord();
 
   @protected
+  @nonVirtual
   String bracketsIf(bool condition, String string) {
     return condition ? "[$string]" : string;
   }
@@ -143,7 +145,6 @@ class MultiOptionElement extends ParameterElement {
   final int? min;
 
   bool get hasAbbr => abbr != null;
-
   bool get atLeastOne => min != null && min! >= 1;
 
   MultiOptionElement({required super.name, required this.abbr, required this.type, required this.min, required super.field, required super.annotation, required super.help});
@@ -156,6 +157,25 @@ class MultiOptionElement extends ParameterElement {
   @override
   String toRecord() {
     return "(name: ${name.quoted}, help: ${help?.quoted}, abbr: ${abbr?.quoted}, type: ${type.getDisplayString().quoted}, min: $min)";
+  }
+}
+
+class RestElement extends ParameterElement {
+  final DartType type;
+  final int? min;
+
+  bool get atLeastOne => min != null && min! >= 1;
+
+  RestElement({required super.name, required this.min, required this.type, required super.field, required super.annotation, required super.help});
+
+  @override
+  String toString() {
+    return "...$name";
+  }
+
+  @override
+  String toRecord() {
+    return "(name: ${name.quoted}, help: ${help?.quoted}, min: $min)";
   }
 }
 
@@ -230,8 +250,12 @@ class CommandGenerator extends GeneratorForSuperclass<Command> {
     if (type == .subcommand) {
       if (!field.isLate || !field.isFinal) throw InvalidGenerationSourceError("Subcommand '$name' should be late and final.");
       if (field.hasInitializer) throw InvalidGenerationSourceError("Subcommand '$name' should not have an initializer.");
-    } else if (type != .multiOption) {
+    } else if (type != .multiOption && type != .rest) {
       if (field.isFinal) throw InvalidGenerationSourceError("Parameter '$name' cannot be final.");
+    } else {
+      if (!field.type.isDartCoreList) throw InvalidGenerationSourceError("Parameter '$name' must be of type List.");
+      if (!field.hasInitializer) throw InvalidGenerationSourceError("Parameter '$name' must have an initializer.");
+      if (field.type.nullabilitySuffix == .question) throw InvalidGenerationSourceError("Parameter '$name' cannot be null.");
     }
   }
 
@@ -292,18 +316,27 @@ class CommandGenerator extends GeneratorForSuperclass<Command> {
       if (annotation == null) return null;
       final name = validateName(getField(annotation, "name")!.toStringValue()!, .multiOption);
 
-      if (!x.type.isDartCoreList) {
-        throw InvalidGenerationSourceError("Multi-option $name needs to be of type List.");
-      }
-
       checkField(.multiOption, x, name);
       return MultiOptionElement(name: name, abbr: validateAbbr(getField(annotation, "abbr")?.toStringValue(), .multiOption), help: getField(annotation, "help")?.toStringValue(), type: (x.type as InterfaceType).typeArguments.first, field: x, annotation: annotation, min: getField(annotation, "min")?.toIntValue());
     }).whereType<MultiOptionElement>();
+
+    final rests = allFields(element).map((x) {
+      final annotation = getAnnotation(x, [.rest]);
+      if (annotation == null) return null;
+      final name = validateName(getField(annotation, "name")!.toStringValue()!, .multiOption);
+
+      checkField(.rest, x, name);
+      return RestElement(name: name, help: getField(annotation, "help")?.toStringValue(), type: (x.type as InterfaceType).typeArguments.first, field: x, annotation: annotation, min: getField(annotation, "min")?.toIntValue());
+    }).whereType<RestElement>();
+
+    if (rests.length > 1) throw InvalidGenerationSourceError("Too many rest parameters. Expected 0-1, got ${rests.length}.");
+    final rest = rests.firstOrNull;
 
     final Set<DartType> allTypes = {
       ...arguments.map((x) => x.type),
       ...options.map((x) => x.type),
       ...multiOptions.map((x) => x.type),
+      ?rest?.type,
     };
 
     for (final subcommand in subcommands) {
@@ -364,7 +397,8 @@ bool runCommands(List<String> arguments) {
 extension ${element.name}Help on ${element.name} {
   /// The default usage builder for this command.
   UsageBuilder defaultUsageBuilder() {
-    return UsageBuilder()..addCustom(name)${flags.map((x) => "..addFlag(flags.${x.field.name})").join("")}${options.map((x) => "..addOption(options.${x.field.name})").join("")}${multiOptions.map((x) => "..addMultiOption(multiOptions.${x.field.name})").join("")}${arguments.map((x) => "..addArgument(arguments.${x.field.name})").join("")}..addCustom(settings.restUsageName != null ? "...\${settings.restUsageName}" : null);
+    return UsageBuilder()..addCustom(name)${flags.map((x) => "..addFlag(flags.${x.field.name})").join("")}${options.map((x) => "..addOption(options.${x.field.name})").join("")}${multiOptions.map((x) => "..addMultiOption(multiOptions.${x.field.name})").join("")}${arguments.map((x) => "..addArgument(arguments.${x.field.name})").join("")}
+      ${rest != null ? '..addRest(${rest.field.name}Data)' : ""};
   }
 
   /// Builds the usage from either the provided builder or the default builder,
@@ -392,6 +426,10 @@ extension ${element.name}Help on ${element.name} {
   ${allBlankRecords("multi-options", "multiOptions", "MultiOptionData", multiOptions)}
 
   ${allBlankRecords("subcommands", "subcommands", "SubcommandData", subcommands)}
+
+  ${rest != null ? """
+RestData get ${rest.field.name}Data => ${rest.toRecord()};
+""" : ""}
 }
 
 final class ${element.internalName} {
@@ -461,7 +499,6 @@ final class ${element.internalName} {
     final iterator = arguments.iterator;
     final maxPos = ${arguments.length - 1};
 
-    final List<String> rest = [];
     final Set<String> setOptions = {};
     final Map<String, int> setMultiOptions = {};
 
@@ -491,13 +528,30 @@ final class ${element.internalName} {
         pos++;
         foundArgument = true;
       } else {
-        if (!object.settings.allowRest) {
-          throw ParseException("Too many arguments. Expected ${arguments.length}, but got an extra: '\$arg'", object, object.usage);
-        }
+        ${rest != null ? """
+try {
+  // Converts strings into the preferred type
+  final converter = object.getConverter(${rest.type.displayString});
 
-        rest.add(arg);
-        pos++;
-        foundArgument = true;
+  if (converter == null) {
+    throw ConverterNotFoundError("Converter not found for option ${element.name} and type ${rest.type.displayString}.");
+  }
+
+  final value = converter.convert(arg);
+
+  if (value == null) {
+    throw ParseException.fromConversionError(converter.typePretty ?? "${rest.type.displayString}", arg, converter.help(), object, object.usage);
+  }
+
+  object.${rest.field.name}.add(value);
+  setOptions.add("${element.name}");
+} catch (e) {
+  if (e is ParseException) rethrow;
+  throw ParseException("An unexpected error happened while parsing an argument of '${rest.name}':\\n\$e\\nParsing: '\$arg' to ${rest.type.displayString}\\nIf you are a developer, please change your converter to catch its own exceptions.", object, object.usage);
+}
+""" : """
+throw ParseException("Too many arguments. Expected ${arguments.length}, but got an extra: '\$arg'", object, object.usage);
+"""}
       }
     }
 
@@ -678,9 +732,13 @@ final class ${element.internalName} {
       }
     }
 
-    object.rest = rest;
-    final validate = object.validate();
+    ${rest != null && rest.min != null ? """
+if (${rest.min == 1 ? 'object.${rest.field.name}.isEmpty' : 'object.${rest.field.name}.length < ${rest.min}'}) {
+  throw ParseException("Not enough arguments for rest parameter '${rest.name}'. ${rest.min} required, \${object.${rest.field.name}.length} provided.", object, object.usage);
+}
+""" : ""}
 
+    final validate = object.validate();
     if (validate != null) throw ParseException(validate, object, object.usage);
     object.onRun();
   }

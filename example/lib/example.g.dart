@@ -13,11 +13,7 @@ bool runCommands(List<String> arguments) {
 extension ParentCommandHelp on ParentCommand {
   /// The default usage builder for this command.
   UsageBuilder defaultUsageBuilder() {
-    return UsageBuilder()
-      ..addCustom(name)
-      ..addCustom(
-        settings.restUsageName != null ? "...${settings.restUsageName}" : null,
-      );
+    return UsageBuilder()..addCustom(name);
   }
 
   /// Builds the usage from either the provided builder or the default builder,
@@ -177,7 +173,6 @@ final class ParentCommandData {
     final iterator = arguments.iterator;
     final maxPos = -1;
 
-    final List<String> rest = [];
     final Set<String> setOptions = {};
     final Map<String, int> setMultiOptions = {};
 
@@ -217,17 +212,11 @@ final class ParentCommandData {
         pos++;
         foundArgument = true;
       } else {
-        if (!object.settings.allowRest) {
-          throw ParseException(
-            "Too many arguments. Expected 0, but got an extra: '$arg'",
-            object,
-            object.usage,
-          );
-        }
-
-        rest.add(arg);
-        pos++;
-        foundArgument = true;
+        throw ParseException(
+          "Too many arguments. Expected 0, but got an extra: '$arg'",
+          object,
+          object.usage,
+        );
       }
     }
 
@@ -313,9 +302,7 @@ final class ParentCommandData {
       }
     }
 
-    object.rest = rest;
     final validate = object.validate();
-
     if (validate != null) throw ParseException(validate, object, object.usage);
     object.onRun();
   }
@@ -332,10 +319,7 @@ extension RandomNumberCommandHelp on RandomNumberCommand {
       ..addOption(options.min)
       ..addOption(options.max)
       ..addOption(options.count)
-      ..addMultiOption(multiOptions.avoids)
-      ..addCustom(
-        settings.restUsageName != null ? "...${settings.restUsageName}" : null,
-      );
+      ..addMultiOption(multiOptions.avoids);
   }
 
   /// Builds the usage from either the provided builder or the default builder,
@@ -569,7 +553,6 @@ final class RandomNumberCommandData {
     final iterator = arguments.iterator;
     final maxPos = -1;
 
-    final List<String> rest = [];
     final Set<String> setOptions = {};
     final Map<String, int> setMultiOptions = {};
 
@@ -609,17 +592,11 @@ final class RandomNumberCommandData {
         pos++;
         foundArgument = true;
       } else {
-        if (!object.settings.allowRest) {
-          throw ParseException(
-            "Too many arguments. Expected 0, but got an extra: '$arg'",
-            object,
-            object.usage,
-          );
-        }
-
-        rest.add(arg);
-        pos++;
-        foundArgument = true;
+        throw ParseException(
+          "Too many arguments. Expected 0, but got an extra: '$arg'",
+          object,
+          object.usage,
+        );
       }
     }
 
@@ -970,9 +947,7 @@ final class RandomNumberCommandData {
       }
     }
 
-    object.rest = rest;
     final validate = object.validate();
-
     if (validate != null) throw ParseException(validate, object, object.usage);
     object.onRun();
   }
@@ -986,9 +961,7 @@ extension EchoCommandHelp on EchoCommand {
       ..addFlag(flags.capitalize)
       ..addFlag(flags.verbose)
       ..addOption(options.repeat)
-      ..addCustom(
-        settings.restUsageName != null ? "...${settings.restUsageName}" : null,
-      );
+      ..addRest(restData);
   }
 
   /// Builds the usage from either the provided builder or the default builder,
@@ -1098,6 +1071,8 @@ extension EchoCommandHelp on EchoCommand {
   () get subcommands {
     return ();
   }
+
+  RestData get restData => (name: "text", help: "Your words.", min: 1);
 }
 
 final class EchoCommandData {
@@ -1136,7 +1111,7 @@ final class EchoCommandData {
       if (result != null) throw ConverterValidationError(result);
     }
 
-    for (final type in [int]) {
+    for (final type in [int, String]) {
       if (object.checkConverter(type) == false) {
         missingConverters.add(type);
       }
@@ -1164,7 +1139,6 @@ final class EchoCommandData {
     final iterator = arguments.iterator;
     final maxPos = -1;
 
-    final List<String> rest = [];
     final Set<String> setOptions = {};
     final Map<String, int> setMultiOptions = {};
 
@@ -1204,17 +1178,38 @@ final class EchoCommandData {
         pos++;
         foundArgument = true;
       } else {
-        if (!object.settings.allowRest) {
+        try {
+          // Converts strings into the preferred type
+          final converter = object.getConverter(String);
+
+          if (converter == null) {
+            throw ConverterNotFoundError(
+              "Converter not found for option EchoCommand and type String.",
+            );
+          }
+
+          final value = converter.convert(arg);
+
+          if (value == null) {
+            throw ParseException.fromConversionError(
+              converter.typePretty ?? "String",
+              arg,
+              converter.help(),
+              object,
+              object.usage,
+            );
+          }
+
+          object.rest.add(value);
+          setOptions.add("EchoCommand");
+        } catch (e) {
+          if (e is ParseException) rethrow;
           throw ParseException(
-            "Too many arguments. Expected 0, but got an extra: '$arg'",
+            "An unexpected error happened while parsing an argument of 'text':\n$e\nParsing: '$arg' to String\nIf you are a developer, please change your converter to catch its own exceptions.",
             object,
             object.usage,
           );
         }
-
-        rest.add(arg);
-        pos++;
-        foundArgument = true;
       }
     }
 
@@ -1398,9 +1393,15 @@ final class EchoCommandData {
       }
     }
 
-    object.rest = rest;
-    final validate = object.validate();
+    if (object.rest.isEmpty) {
+      throw ParseException(
+        "Not enough arguments for rest parameter 'text'. 1 required, ${object.rest.length} provided.",
+        object,
+        object.usage,
+      );
+    }
 
+    final validate = object.validate();
     if (validate != null) throw ParseException(validate, object, object.usage);
     object.onRun();
   }
@@ -1416,9 +1417,7 @@ extension PrintMyPositionalArgumentsCommandHelp
       ..addArgument(arguments.arg1)
       ..addArgument(arguments.arg2)
       ..addArgument(arguments.arg3)
-      ..addCustom(
-        settings.restUsageName != null ? "...${settings.restUsageName}" : null,
-      );
+      ..addRest(numbersData);
   }
 
   /// Builds the usage from either the provided builder or the default builder,
@@ -1508,6 +1507,8 @@ extension PrintMyPositionalArgumentsCommandHelp
   () get subcommands {
     return ();
   }
+
+  RestData get numbersData => (name: "numbers", help: "Numbers!", min: null);
 }
 
 final class PrintMyPositionalArgumentsCommandData {
@@ -1596,7 +1597,6 @@ final class PrintMyPositionalArgumentsCommandData {
     final iterator = arguments.iterator;
     final maxPos = 2;
 
-    final List<String> rest = [];
     final Set<String> setOptions = {};
     final Map<String, int> setMultiOptions = {};
 
@@ -1636,17 +1636,38 @@ final class PrintMyPositionalArgumentsCommandData {
         pos++;
         foundArgument = true;
       } else {
-        if (!object.settings.allowRest) {
+        try {
+          // Converts strings into the preferred type
+          final converter = object.getConverter(int);
+
+          if (converter == null) {
+            throw ConverterNotFoundError(
+              "Converter not found for option PrintMyPositionalArgumentsCommand and type int.",
+            );
+          }
+
+          final value = converter.convert(arg);
+
+          if (value == null) {
+            throw ParseException.fromConversionError(
+              converter.typePretty ?? "int",
+              arg,
+              converter.help(),
+              object,
+              object.usage,
+            );
+          }
+
+          object.numbers.add(value);
+          setOptions.add("PrintMyPositionalArgumentsCommand");
+        } catch (e) {
+          if (e is ParseException) rethrow;
           throw ParseException(
-            "Too many arguments. Expected 3, but got an extra: '$arg'",
+            "An unexpected error happened while parsing an argument of 'numbers':\n$e\nParsing: '$arg' to int\nIf you are a developer, please change your converter to catch its own exceptions.",
             object,
             object.usage,
           );
         }
-
-        rest.add(arg);
-        pos++;
-        foundArgument = true;
       }
     }
 
@@ -1738,9 +1759,7 @@ final class PrintMyPositionalArgumentsCommandData {
       }
     }
 
-    object.rest = rest;
     final validate = object.validate();
-
     if (validate != null) throw ParseException(validate, object, object.usage);
     object.onRun();
   }

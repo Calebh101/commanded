@@ -13,11 +13,6 @@ final class CommandSettings {
   /// an error will be thrown and caught and help will be shown.
   final bool subcommandsOnly;
 
-  /// If this is true, then the `rest` field will be populated on extra positional arguments.
-  ///
-  /// If this is false, an error is thrown if there are too many arguments.
-  final bool allowRest;
-
   /// Take this example:
   ///
   /// ```
@@ -35,17 +30,9 @@ final class CommandSettings {
   /// If this is disabled, invalid options and flags will be treated as positional arguments.
   final bool errorOnInvalidOptions;
 
-  /// This only applies to the auto-generated usage builder.
-  ///
-  /// If this is `text`, then this will be shown in the usage:<br>
-  /// `Usage: mycommand [--my-flag] ...text`
-  ///
-  /// If this is null, then `...text` would not be there.
-  final String? restUsageName;
-
   /// Various settings for commands.
   /// These can be changed without needing to rerun Build Runner.
-  const CommandSettings({this.subcommandsOnly = false, this.allowRest = false, this.allowTrailingOptions = true, this.errorOnInvalidOptions = true, this.restUsageName});
+  const CommandSettings({this.subcommandsOnly = false, this.allowTrailingOptions = true, this.errorOnInvalidOptions = true});
 }
 
 /// Abstract class for defining a command.
@@ -71,10 +58,6 @@ abstract class Command {
   ///
   /// Calling super is not required, and does nothing.
   List<Converter> get converters => [];
-
-  /// The rest of the arguments provided after all the positional arguments have been set.
-  @nonVirtual
-  late List<String> rest;
 
   /// Use this to validate command input.
   ///
@@ -334,6 +317,17 @@ class HelpBuilder extends Builder {
     items.add(.new(data.name, data.help));
   }
 
+  /// Add a rest parameter from a [RestData] to the list of items.
+  ///
+  /// Rest parameters will be represented as their name, with an ellipsis, like so:
+  ///
+  /// ```
+  /// ...rest
+  /// ```
+  void addRest(RestData data) {
+    items.add(.new("...${data.name}", data.help));
+  }
+
   /// Add several arguments from [ArgumentData] to the list of items.
   ///
   /// Arguments will be represented as their name, like so:
@@ -492,6 +486,18 @@ class UsageBuilder extends Builder {
   /// The option is required if its `min` value is 1 or more.
   void addMultiOption(MultiOptionData data) {
     items.add(["--${data.name} <${data.name}>"].join("/").bracketsIf((data.min ?? 0) < 1));
+  }
+
+  /// Add a rest parameter from a [RestData] to the list of items.
+  ///
+  /// Rest parameters will be represented as their name, with an ellipsis, like so:
+  ///
+  /// ```
+  /// ...rest
+  /// [...rest-optional]
+  /// ```
+  void addRest(RestData data) {
+    items.add("...${data.name}".bracketsIf((data.min ?? 0) < 1));
   }
 
   /// Add several arguments from [ArgumentData] to the list of items.
