@@ -3,6 +3,14 @@
 Glad you stumbled upon my package!
 This package is a type-safe way to make command-line apps with advanced arguments while eliminating most of the boilerplate.
 
+# What is this package?
+
+This package uses [build_runner](https://pub.dev/packages/build_runner) to generate a parser for your CLI arguments.
+
+You define your arguments using a declarative API using primarily annotations, and some class extending.
+
+See examples in the [example](example/lib/example.dart)!
+
 # How to make it work
 
 For a detailed walkthrough, see the [example](example/lib/example.dart).
@@ -44,7 +52,7 @@ class BoolConverter extends Converter<bool> {
     final value = input.trim().toLowerCase();
     final number = num.tryParse(value);
 
-    if (number != null) return number > 0;
+    if (number == 0 || number == 1) return number == 1;
     if (value == "y" || value == "yes" || value == "true") return true;
     if (value == "n" || value == "no" || value == "false") return false;
     return null;
@@ -63,6 +71,13 @@ In the `convert` function, we, well, check if the input string can be applied to
 I won't bore you with the details; you can read it yourself :)
 
 There's also this `help` method. This returns a helpful tip that will be shown to the user if `convert` returns null.
+
+### Are there any built-in ones?
+
+Yes! You can find them in [converters/core.dart](lib/src/converters/core.dart).
+
+When you don't define a converter for, let's say, a string, the `builtinConverters` getter is used to look up a possible built-in converter.
+However, if you do define a custom converter for a string, that will take precedence over the built-in one.
 
 ---
 

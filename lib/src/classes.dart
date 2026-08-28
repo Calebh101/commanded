@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:commanded/src/converters/core.dart';
 import 'package:commanded/src/types.dart';
 import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
@@ -56,7 +57,7 @@ abstract class Command {
   /// Converters for this command.
   /// For more info, see the readme for this package.
   ///
-  /// Calling super is not required, and does nothing.
+  /// `super` is not required nor recommended to be called.
   List<Converter> get converters => [];
 
   /// Use this to validate command input.
@@ -112,9 +113,17 @@ abstract class Command {
   /// Tries to get a converter from [converters].
   ///
   /// Types must match exactly.
+  ///
+  /// If a converter is not found, the built-in converters are tried.
+  ///
+  /// If nothing is matched, the function will return `null`.
   @nonVirtual
   Converter? getConverter(Type type) {
     for (final c in converters) {
+      if (c.type == type) return c;
+    }
+
+    for (final c in builtinConverters) {
       if (c.type == type) return c;
     }
 
@@ -124,13 +133,13 @@ abstract class Command {
   /// Tries to find a converter from [converters].
   ///
   /// Types must match exactly.
+  ///
+  /// If a converter is not found, the built-in converters are tried.
+  ///
+  /// Returns `true` if found.
   @nonVirtual
   bool checkConverter(Type type) {
-    for (final c in converters) {
-      if (c.type == type) return true;
-    }
-
-    return false;
+    return getConverter(type) != null;
   }
 }
 

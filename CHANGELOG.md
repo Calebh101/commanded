@@ -21,3 +21,10 @@
 - Added functions like `addArguments`, `addOptions`, etc to `HelpBuilder` and `UsageBuilder`.
 - Added new command setting to control if the parser should parse invalid flags as positional arguments. (`errorOnInvalidOptions`)
 - Changed a couple small things related to builder rendering.
+
+## 0.1.0
+
+- **BREAKING!** Created new API for declaring parameters that can replace the functionality of the built-in `rest` property.
+- **BREAKING!** Made overriding `get converters` in `Command` required.
+- **BREAKING!** Removed `JsonConverter`.
+- Provided built-in converters.

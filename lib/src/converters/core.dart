@@ -1,7 +1,16 @@
-import 'dart:convert';
-
 import 'package:commanded/src/classes.dart';
 import 'package:collection/collection.dart';
+
+/// All built-in converters.
+///
+/// These will be used if they match a type that you didn't provide in your command's `converters` getter.
+List<Converter> get builtinConverters => [
+  BoolConverter(),
+  DoubleConverter(),
+  IntConverter(),
+  NumConverter(),
+  StringConverter(),
+];
 
 /// Converts into `bool`.
 ///
@@ -92,21 +101,6 @@ class IntConverter extends Converter<int> {
   @override
   convert(String input) {
     return .tryParse(input);
-  }
-}
-
-/// Converts the input into `Object` using `jsonDecode` from `dart:convert`.
-class JsonConverter extends Converter<Object> {
-  /// Converts the input into `Object` using `jsonDecode` from `dart:convert`.
-  new();
-
-  @override
-  convert(String input) {
-    try {
-      return jsonDecode(input);
-    } catch (_) {
-      return null;
-    }
   }
 }
 

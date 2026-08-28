@@ -156,9 +156,36 @@ class Subcommand extends Parameter {
   const Subcommand(super.name, {super.help});
 }
 
+/// Defines a field to use as a rest parameter.
+///
+/// A rest parameter defines a field that should be used to collect extra positional arguments.
+///
+/// Whenever the user provides extra positional arguments,
+/// they will be parsed into this field.
+///
+/// This field must be a list, and a converter must be provided for the type.
+///
+/// There can only be 1 of these in a command.
+/// If there are no rest parameters defined in a command,
+/// extra positional arguments will throw an error and show help.
 class Rest extends Parameter {
+  /// An optional minimum amount of values required.
+  ///
+  /// This must not be negative.
   final int? min;
 
+  /// Defines a field to use as a rest parameter.
+  ///
+  /// A rest parameter defines a field that should be used to collect extra positional arguments.
+  ///
+  /// Whenever the user provides extra positional arguments,
+  /// they will be parsed into this field.
+  ///
+  /// This field must be a list, and a converter must be provided for the type.
+  ///
+  /// There can only be 1 of these in a command.
+  /// If there are no rest parameters defined in a command,
+  /// extra positional arguments will throw an error and show help.
   const Rest(super.name, {super.help, this.min});
 }
 

@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:commanded/commanded.dart';
 
+// Build Runner stuff.
 part 'example.g.dart';
 
 // Here, let's create a simple command-line application with a bunch of subcommands that do various things.
@@ -99,16 +100,6 @@ class RandomNumberCommand extends BaseCommand {
   @override
   String get name => "random";
 
-  // Define converters for options, multi-options, and arguments. (Flags and subcommands don't need converters.)
-  // I won't explain it all here, but for more info on this, please see the readme.
-  //
-  // Note: converters are required for all options, multi-options, and arguments.
-  // Yes, even strings. Nothing is built-in.
-  @override
-  List<Converter> get converters => [
-    IntConverter(),
-  ];
-
   // Since it's not late, and we put a default, the option is not required, and will default to 0.
   @Option("min", help: "Min number to generate, inclusive. Defaults to 0.")
   int min = 0;
@@ -145,6 +136,8 @@ class RandomNumberCommand extends BaseCommand {
     if (min < 0 || max < 0) return "Both min and max cannot be negative.";
     if (min > max) return "min must be equal to or lesser than max.";
     if (count < 1) return "Count must be positive.";
+
+    if (avoids.length >= max - min + 1) return "You avoided as many numbers as you can generate!";
     return null;
   }
 
@@ -163,11 +156,11 @@ class RandomNumberCommand extends BaseCommand {
         value = random.nextInt((max - min) + 1) + min;
       }
 
-      stopwatch.stop();
       print(value);
     }
 
-    if (timed) print("Time: ${avoided ? "<invalid due to value avoided>" : stopwatch.elapsedMicroseconds}us");
+    stopwatch.stop();
+    if (timed) print("Time: ${avoided ? "<Timing unavailable because generation required retries.>" : stopwatch.elapsedMicroseconds}us");
     if (verbose) print("Generated number! (secure: $secure, avoided: ${avoids.join(", ")})"); // We're using verbose, from BaseCommand!
   }
 
@@ -195,15 +188,6 @@ class EchoCommand extends BaseCommand {
   // These will be explained below.
   @override
   CommandSettings get settings => .new(allowTrailingOptions: false, errorOnInvalidOptions: false);
-
-  // Define converters for options, multi-options, arguments, and rest parameters.
-  // If we don't do this, we'll get a runtime error.
-  // We don't have to do this for flags.
-  @override
-  List<Converter> get converters => [
-    StringConverter(),
-    IntConverter(),
-  ];
 
   // An option.
   @Option("repeat", abbr: "r", help: "How many times to repeat the text. Defaults to 1.")
@@ -300,13 +284,15 @@ class PrintMyPositionalArgumentsCommand extends BaseCommand {
   @override
   String get name => "args";
 
-  // We have to define converters for everything, even stuff you'd think is built-in!
-  // (Hint: nothing is built-in.)
-  // For more info, see the readme.
+  // Define converters for options, multi-options, arguments, and rest parameters.
+  // If we don't do this, we'll get a runtime error.
+  // This is because the parser doesn't know how to use MyEnum.
+  // We never have to do this for flags.
+  //
+  // Basic types are built-in, like int, num, String, double, and bool.
+  // For more info, see the readme of this package.
   @override
   List<Converter<dynamic>> get converters => [
-    StringConverter(),
-    IntConverter(),
     EnumConverter<MyEnum>(MyEnum.values),
   ];
 
