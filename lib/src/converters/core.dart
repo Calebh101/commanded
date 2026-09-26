@@ -38,9 +38,9 @@ class BoolConverter extends Converter<bool> {
   }
 }
 
-/// Converts into `Double` using `tryParse`.
+/// Converts into `double` using `tryParse`.
 class DoubleConverter extends Converter<double> {
-  /// Converts into `Double` using `tryParse`.
+  /// Converts into `double` using `tryParse`.
   new();
 
   @override
@@ -104,9 +104,9 @@ class IntConverter extends Converter<int> {
   }
 }
 
-/// Converts into `Double` using `tryParse`.
+/// Converts into `num` using `tryParse`.
 class NumConverter extends Converter<num> {
-  /// Converts into `Double` using `tryParse`.
+  /// Converts into `num` using `tryParse`.
   new();
 
   @override
