@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:commanded/commanded.dart';
 
 // Build Runner stuff.
+// See the readme.
 part 'example.g.dart';
 
 // Here, let's create a simple command-line application with a bunch of subcommands that do various things.
@@ -15,7 +16,7 @@ part 'example.g.dart';
 // - Have optional --min and --max options for tuning the range.
 // - Have an optional --secure flag for making the RNG use Random.secure. For a bonus, we'll also let this have a -s abbreviation!
 // - Have an avoid list too, so the user can select specific numbers to avoid choosing. We'll also give this an abbreviation of -a!
-// - We'll also have a --timed flag for debugging.
+// - We'll also have a --timed flag for debugging, and a --count flag for producing multiple.
 //
 //
 // Our next utility: **Text Echoer**
@@ -28,10 +29,12 @@ part 'example.g.dart';
 //
 // Our next little thing: **PrintMyArguments**
 // This is a very basic command to demonstrate positional arguments. We'll also do enums too!
+//
+// That's all our examples, but more may be added in the future!
 
 // First, we're gonna set up a base command class. This gives us global options.
 // For now, we'll just have --verbose.
-// This allows of this class to be inherited by command classes that extends BaseCommand!
+// This allows this class to be inherited by command classes that extend BaseCommand!
 abstract class BaseCommand extends Command {
   @Flag("verbose", abbr: "v", help: "Enable verbose mode. This gives you extra logs.")
   bool verbose = false;
@@ -50,7 +53,7 @@ class ParentCommand extends Command {
 
   // We only have subcommands in this command, so we error if someone runs our command without any subcommands.
   @override
-  CommandSettings get settings => .new(subcommandsOnly: true);
+  CommandSettings get settings => CommandSettings(subcommandsOnly: true);
 
   // Define a subcommand. We can put late here instead of creating a new command.
   // The build runner only looks at the type, which is RandomNumberCommand here.
@@ -68,9 +71,12 @@ class ParentCommand extends Command {
   // Build the usage line that shows up when --help is called.
   // This is very customizable, to fit whatever style you prefer!
   // If you don't override this, or return null, a default usage builder is used.
+  //
+  // We'll just put our own text here for now, but later on in this example,
+  // we can actually add flags, options, etc.
   @override
   UsageBuilder? buildUsage() {
-    return .new()
+    return UsageBuilder()
       ..addCustom("example")
       ..addCustom("<${allSubcommands.map((x) => x.name).join(" | ")}>")
       ;
@@ -80,10 +86,10 @@ class ParentCommand extends Command {
   // This is also very customizable!
   //
   // We don't do much here, but we'll use addSubcommands to make things easier.
-  // We'll do more later.
+  // We'll do more to our HelpBuilders later.
   @override
   HelpBuilder buildHelp() {
-    return .new()
+    return HelpBuilder()
       ..addSubcommands(allSubcommands)
       ;
   }
@@ -142,9 +148,13 @@ class RandomNumberCommand extends BaseCommand {
   }
 
   // Run our program! All of our properties, like min, max, secure, and even random, are available here!
+  //
+  // Example output:
+  // dart run example random
+  // 51
   @override
   void onRun() {
-    final Random random = (secure ? .secure() : .new());
+    final random = (secure ? Random.secure() : Random());
     final stopwatch = Stopwatch()..start();
     bool avoided = false;
 
@@ -166,15 +176,21 @@ class RandomNumberCommand extends BaseCommand {
 
   // Build our help, but this time with more customization!
   // We can even add separators and custom text! How cool is that!
+  //
+  // Note: You don't have to manually use addOption and addFlag for all of these.
+  // There are methods provided like addOptions and addFlags, that take in a list, which is also auto-generated (E.G. 'allFlags').
   @override
   HelpBuilder buildHelp() {
-    return .new()
+    return HelpBuilder()
       ..addCustom("Options:")
       ..addOption(options.min)
       ..addOption(options.max)
+      ..addOption(options.count)
+      ..addMultiOption(multiOptions.avoids)
       ..addSeparator()
       ..addCustom("Flags:")
       ..addFlag(flags.secure)
+      ..addFlag(flags.timed)
       ..addFlag(flags.verbose)
       ;
   }
@@ -185,9 +201,9 @@ class EchoCommand extends BaseCommand {
   @override
   String get name => "echo";
 
-  // These will be explained below.
+  // These settings will be explained below (see the comment in onRun).
   @override
-  CommandSettings get settings => .new(allowTrailingOptions: false, errorOnInvalidOptions: false);
+  CommandSettings get settings => CommandSettings(allowTrailingOptions: false, errorOnInvalidOptions: false);
 
   // An option.
   @Option("repeat", abbr: "r", help: "How many times to repeat the text. Defaults to 1.")
@@ -214,7 +230,7 @@ class EchoCommand extends BaseCommand {
   // Some basic help building.
   @override
   HelpBuilder buildHelp() {
-    return .new()
+    return HelpBuilder()
       ..addOption(options.repeat)
       ..addFlag(flags.capitalize)
       ;
@@ -225,7 +241,7 @@ class EchoCommand extends BaseCommand {
   // As HelpBuilder allows extra text, so does UsageBuilder!
   @override
   UsageBuilder? buildUsage() {
-    return .new()
+    return UsageBuilder()
       ..addFlag(flags.verbose)
       ..addFlag(flags.capitalize)
       ..addOption(options.repeat)
@@ -240,17 +256,21 @@ class EchoCommand extends BaseCommand {
     return null;
   }
 
+  // Example output:
+  // dart run example echo --repeat 3 --capitalize Hello, world
+  // HELLO, WORLDHELLO, WORLDHELLO, WORLD
   @override
   void onRun() {
     // Oh-ho, what's this 'rest' variable we see?
     // Well, this is in fact a list containing all the positional arguments, even if we haven't defined them.
-    // Remember our settings up there, specifically allowRest? This makes it so that our parser doesn't error if it encounters a positional argument that overflows the amount we've defined.
+    // Having this variable with an @Rest annotation makes it so that our parser doesn't error if it encounters a positional argument that overflows the amount we've defined;
+    // it instead adds it to this list.
     //
     // Because rest is a List<String>, we will combine all the arguments with spaces.
     // Yes, it might be inaccurate, but the point here is to show off the rest variable.
     // You might use this for better purposes later on.
     //
-    // Remember allowTrailingOptions? Well, this makes it so that when we use a positional argument, or start inputting text, then options and flags after that get parsed as a positional argument.
+    // Remember allowTrailingOptions? (If not, see above, at settings.) Well, this makes it so that when we use a positional argument, or start inputting text, then options and flags after that get parsed as a positional argument.
     // Try it out! Use this:
     //   dart run example echo "hey there!" --repeat 3
     // You'll actually see the text:
@@ -316,12 +336,18 @@ class PrintMyPositionalArgumentsCommand extends BaseCommand {
 
   @override
   HelpBuilder buildHelp() {
-    return .new()
+    return HelpBuilder()
       ..addArguments(allArguments)
       ..addRest(numbersData)
       ;
   }
 
+  // Example output:
+  // dart run example args hello 17 one 1 2 3 4
+  // arg1: hello (String)
+  // arg2: 17 (int)
+  // arg3: MyEnum.one (MyEnum)
+  // numbers: 1, 2, 3, 4 (List<int>)
   @override
   void onRun() {
     print("arg1: $arg1 (${arg1.runtimeType})");
@@ -337,7 +363,7 @@ class PrintMyPositionalArgumentsCommand extends BaseCommand {
   //
   // If you run:
   //   dart run example args true test 32
-  // You'll see an error message, saying that you entered something invalid.
+  // You'll see an error message, saying that you entered something invalid, because 'test' doesn't fit 'int', which is our second argument.
   // Now, try rearranging these arguments, and see what happens!
 }
 

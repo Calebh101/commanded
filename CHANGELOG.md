@@ -28,3 +28,9 @@
 - **BREAKING!** Made overriding `get converters` in `Command` required.
 - **BREAKING!** Removed `JsonConverter`.
 - Provided built-in converters.
+
+## 0.1.1
+
+- Added `HelpBuilder.addAllCustom` and `UsageBuilder.addAllCustom`.
+- Improved documentation and example.
+- Bump dependencies.

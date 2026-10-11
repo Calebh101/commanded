@@ -411,12 +411,26 @@ class HelpBuilder extends Builder {
 
   /// Add a custom line to the list of items.
   ///
-  /// [left] is the text shown in the left column, and
-  /// [right] is the text shown in the right column.
+  /// - [left] is the text shown in the left column, and
+  /// - [right] is the text shown in the right column.
   ///
   /// `null` = blank.
   void addCustom([String? left, String? right]) {
     items.add(.new(left, right));
+  }
+
+  /// Add multiple custom lines to the list of items.
+  ///
+  /// For each entry:
+  ///
+  /// - `left` is the text shown in the left column, and
+  /// - `right` is the text shown in the right column.
+  ///
+  /// `null` = blank.
+  void addAllCustom(List<(String? left, String? right)> data) {
+    for (final x in data) {
+      addCustom(x.$1, x.$2);
+    }
   }
 
   @override
@@ -573,6 +587,15 @@ class UsageBuilder extends Builder {
   /// If nothing is provided, nothing is added.
   void addCustom(String? value) {
     if (value != null) items.add(value);
+  }
+
+  /// Add custom strings into the items.
+  ///
+  /// This will still be joined by spaces, so you don't need to add a space before or after your strings.
+  void addAllCustom(List<String> data) {
+    for (final x in data) {
+      addCustom(x);
+    }
   }
 
   @override

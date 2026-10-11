@@ -11,7 +11,18 @@ You define your arguments using a declarative API using primarily annotations, a
 
 See examples in the [example](example/lib/example.dart)!
 
-# How to make it work
+# How to use it
+
+THe process of this is similar to `json_serializable`.
+
+If you're not familiar with this, this is the process:
+
+- Create a source file. For our example, let's call it `commands.dart`.
+- Add your command code, using this package.
+- Add a `part` statement at the top of the file. For our example, it'd be `part 'commands.g.dart';`.
+- In the project directory, run `dart run build_runner build`. If `build_runner` isn't found, add it to `dev_dependencies`.
+
+# How to code with it
 
 For a detailed walkthrough, see the [example](example/lib/example.dart).
 This will walk you through the API like a small guide.
